@@ -1,0 +1,20 @@
+services:
+  receiver:
+    build:
+      context: ..
+      dockerfile: deploy/Containerfile.receiver
+    command: ["--bind-port", "9001", "--output-dir", "/data"]
+    ports:
+      - "9001:9001/udp"
+    volumes:
+      - ./data:/data
+
+  sender:
+    build:
+      context: ..
+      dockerfile: deploy/Containerfile.sender
+    command: ["--host", "receiver", "--port", "9001", "--agent", "agent-a", "--file", "/payload/test.bin"]
+    volumes:
+      - ./payload:/payload
+    depends_on:
+      - receiver
