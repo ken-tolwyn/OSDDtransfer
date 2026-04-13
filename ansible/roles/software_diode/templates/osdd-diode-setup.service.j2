@@ -1,0 +1,12 @@
+[Unit]
+Description=OSDD Software Data Diode Setup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart={{ software_diode_script_path }}
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

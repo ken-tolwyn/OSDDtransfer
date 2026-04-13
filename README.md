@@ -33,6 +33,14 @@ python -m osddtransfer.sender --host 127.0.0.1 --port 9001 --agent agent-a --fil
 
 Recovered files are written under `./received/<transfer_agent_id>/`.
 
+
+## Ansible software diode setup
+
+An Ansible playbook is included to configure a software-enforced one-way UDP path using macvlan interfaces and nftables policy controls:
+
+- Playbook: `ansible/playbooks/setup_software_diode.yml`
+- Guide: `ansible/README.md`
+
 ## Oracle deployment
 
 1. Connect SQLcl to your Oracle Autonomous Database schema.

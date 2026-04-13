@@ -1,0 +1,11 @@
+---
+software_diode_parent_iface: eth0
+software_diode_low_iface: diode-low
+software_diode_high_iface: diode-high
+software_diode_low_ip_cidr: 172.31.10.1/24
+software_diode_high_ip_cidr: 172.31.20.1/24
+software_diode_udp_ports:
+  - 9001
+software_diode_nft_table: osdd_diode
+software_diode_script_path: /usr/local/sbin/osdd-diode-setup.sh
+software_diode_unit_name: osdd-diode-setup.service

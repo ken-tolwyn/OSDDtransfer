@@ -1,0 +1,6 @@
+---
+- name: Configure software data diode host
+  hosts: diode_hosts
+  become: true
+  roles:
+    - software_diode

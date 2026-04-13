@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PARENT_IFACE="{{ software_diode_parent_iface }}"
+LOW_IFACE="{{ software_diode_low_iface }}"
+HIGH_IFACE="{{ software_diode_high_iface }}"
+LOW_IP_CIDR="{{ software_diode_low_ip_cidr }}"
+HIGH_IP_CIDR="{{ software_diode_high_ip_cidr }}"
+NFT_TABLE="{{ software_diode_nft_table }}"
+
+UDP_PORTS=(
+{% for p in software_diode_udp_ports %}
+  "{{ p }}"
+{% endfor %}
+)
+
+# Create low/high macvlan interfaces (idempotent)
+if ! ip link show "$LOW_IFACE" >/dev/null 2>&1; then
+  ip link add "$LOW_IFACE" link "$PARENT_IFACE" type macvlan mode bridge
+fi
+
+if ! ip link show "$HIGH_IFACE" >/dev/null 2>&1; then
+  ip link add "$HIGH_IFACE" link "$PARENT_IFACE" type macvlan mode bridge
+fi
+
+ip addr replace "$LOW_IP_CIDR" dev "$LOW_IFACE"
+ip addr replace "$HIGH_IP_CIDR" dev "$HIGH_IFACE"
+ip link set "$LOW_IFACE" up
+ip link set "$HIGH_IFACE" up
+
+# Enable forwarding at kernel level
+sysctl -w net.ipv4.ip_forward=1 >/dev/null
+
+# Build UDP destination-port set for nft
+PORT_SET="$(IFS=, ; echo "${UDP_PORTS[*]}")"
+
+# Create nft table/chains if absent
+nft list table inet "$NFT_TABLE" >/dev/null 2>&1 || nft add table inet "$NFT_TABLE"
+nft 'list chain inet '"$NFT_TABLE"' forward' >/dev/null 2>&1 || \
+  nft add chain inet "$NFT_TABLE" forward '{ type filter hook forward priority 0; policy accept; }'
+
+# Always rebuild our managed rules (safe/idempotent)
+while read -r handle; do
+  nft delete rule inet "$NFT_TABLE" forward handle "$handle"
+done < <(nft -a list chain inet "$NFT_TABLE" forward | awk '/comment "osdd-diode"/ {print $NF}')
+
+# Allow only low->high UDP transfer ports
+nft add rule inet "$NFT_TABLE" forward iifname "$LOW_IFACE" oifname "$HIGH_IFACE" \
+  udp dport { "$PORT_SET" } counter accept comment "osdd-diode"
+
+# Explicitly drop all reverse high->low traffic (one-way enforcement)
+nft add rule inet "$NFT_TABLE" forward iifname "$HIGH_IFACE" oifname "$LOW_IFACE" \
+  counter drop comment "osdd-diode"
+
+# Drop non-UDP from low->high to keep transfer path narrow
+nft add rule inet "$NFT_TABLE" forward iifname "$LOW_IFACE" oifname "$HIGH_IFACE" \
+  counter drop comment "osdd-diode"
