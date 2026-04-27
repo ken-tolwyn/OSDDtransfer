@@ -1,0 +1,44 @@
+{{- define "escapeLatex" -}}
+{{- . | replace "{" "\\{" | replace "}" "\\}" | replace "$" "\\$" | replace "&" "\\&" | replace "%" "\\%" | replace "#" "\\#" | replace "^" "\\textasciicircum{}" | replace "~" "\\textasciitilde{}" | replace "_" "\\_" -}}
+{{- end -}}
+
+\documentclass{article}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{lmodern}
+\geometry{a4paper, margin=1in}
+
+\begin{document}
+
+\title{Vulnerability Report}
+\date{ {{- .Descriptor.Timestamp -}} }
+\maketitle
+
+Target: \texttt{\small {{ template "escapeLatex" .Source.Target.UserInput | replace "@" "\\\\ @" -}} }
+
+Scanner: \texttt{ {{- .Descriptor.Name }} {{ .Descriptor.Version -}} }
+
+Vulnerability Database Build: \texttt{ {{- .Descriptor.DB.Status.Built -}} }
+
+{{ $matches := .Matches -}}
+{{- if $matches }}
+\begin{center}
+\begin{longtable}{|p{3cm}|p{2cm}|p{2cm}|p{2cm}|p{3cm}|p{2cm}|}
+\hline
+\textbf{NAME} & \textbf{INSTALLED} & \textbf{FIXED-IN} & \textbf{TYPE} & \textbf{VULNERABILITY} & \textbf{SEVERITY} \\
+\hline
+\endhead
+{{- range $matches }}
+{{ template "escapeLatex" .Artifact.Name }} & {{ template "escapeLatex" .Artifact.Version }} & {{ if .Vulnerability.Fix.Versions }}{{ range $i, $v := .Vulnerability.Fix.Versions }}{{ if $i }}, {{ end }}{{ template "escapeLatex" $v }}{{ end }}{{ else }}N/A{{ end }} & {{ .Artifact.Type }} & {{ template "escapeLatex" .Vulnerability.ID }} & {{ template "escapeLatex" .Vulnerability.Severity }} \\
+\hline
+{{- end }}
+\end{longtable}
+\end{center}
+{{- else -}}
+\begin{center}
+No vulnerabilities found.
+\end{center}
+{{- end -}}
+
+\end{document}

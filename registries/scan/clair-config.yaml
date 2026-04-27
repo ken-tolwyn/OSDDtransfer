@@ -1,0 +1,23 @@
+http_listen_addr: :9091
+introspection_addr: :9099
+log_level: debug
+indexer:
+  connstring: host=localhost port=5432 dbname=clair user=quayuser password=quaypass sslmode=disable
+  scanlock_retry: 10
+  layer_scan_concurrency: 5
+  migrations: true
+  airgap: true
+matcher:
+  connstring: host=localhost port=5432 dbname=clair user=quayuser password=quaypass sslmode=disable
+  max_conn_pool: 100
+  migrations: true
+  indexer_addr: clair-indexer
+  disable_updaters: true
+notifier:
+  connstring: host=localhost port=5432 dbname=clair user=quayuser password=quaypass sslmode=disable
+  poll_interval: 5m
+  migrations: true
+auth:
+  psk:
+    key: "Y2JpMGVlZTM0Zmgy"
+    iss: ["quay"]

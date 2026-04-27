@@ -1,0 +1,8 @@
+FROM container-registry.oracle.com/os/oraclelinux:9
+RUN dnf install -y dnf-plugins-core oracle-epel-release-el9 && dnf clean all
+ENV LOCATION=/trunk/reposync
+ENV REPO_LIST=""
+VOLUME ["/trunk/reposync"]
+WORKDIR /root
+ENTRYPOINT ["/bin/bash", "-lc"]
+CMD ["for repo in ${REPO_LIST}; do reposync --gpgcheck --newest-only --delete --download-metadata --exclude='*.src,*.nosrc' -p \"$LOCATION\" --remote-time --repoid \"$repo\"; done"]
