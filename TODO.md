@@ -40,6 +40,7 @@
 - Add preflight checks for required tools before each sync stage starts.
 - Add structured logging with per-run log files and consistent timestamps.
 - Add cleanup traps so failed runs do not leave temporary containers or partial outputs behind.
+- Validate the new NISP repository import path end to end with a real ISO, including version detection, key publication, and generated `list` files.
 
 ## Priority 4
 

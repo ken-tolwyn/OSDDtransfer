@@ -11,8 +11,11 @@ load_common_config "$SCRIPT_DIR"
 load_config_file "$SCRIPT_DIR/config.env"
 
 require_command reposync
-require_command gawk
 require_command rsync
+require_command bsdtar
+
+REPOSITORY_LIST_FILE="${REPOSITORY_ROOT}/list"
+REPOSITORY_KEYS_LIST_FILE="${REPOSITORY_KEYS_DIR}/list"
 
 sync_repos() {
   local destination_root=$1
@@ -50,30 +53,161 @@ sync_ol9_repos() {
     "$REPOSITORY_SYNC_IMAGE" &>/dev/null
 }
 
+copy_key_files() {
+  local destination_dir=$1
+  shift
+  local key_path
+  local copied=()
+
+  ensure_dir "$destination_dir"
+
+  for key_path in "$@"; do
+    [[ -f "$key_path" ]] || continue
+    cp -f "$key_path" "$destination_dir/"
+    copied+=("$(basename "$key_path")")
+  done
+
+  if [[ ${#copied[@]} -gt 0 ]]; then
+    printf '%s\n' "${copied[@]}" | LC_ALL=C sort -u
+  fi
+}
+
+format_gpgkey_value() {
+  local key_name
+  local urls=()
+
+  for key_name in "$@"; do
+    [[ -n "$key_name" ]] || continue
+    urls+=("${REPOSITORY_KEYS_BASEURL%/}/${key_name}")
+  done
+
+  printf '%s' "${urls[*]-}"
+}
+
 generate_repo_file() {
   local source_dir=$1
   local repo_file=$2
   local base_url=$3
-  local prefix=$4
+  local name_prefix=$4
+  local section_prefix=$5
+  local gpgkey_value=$6
+  local repo_name
+  local section_name
+  local display_name
+
+  : > "${repo_file}.new"
+
+  while IFS= read -r repo_name; do
+    [[ -f "${source_dir}/${repo_name}/repodata/repomd.xml" ]] || continue
+
+    section_name=$repo_name
+    display_name="${name_prefix}-${repo_name}"
+
+    if [[ -n "$section_prefix" ]]; then
+      section_name="${section_prefix}-${repo_name}"
+      display_name=$section_name
+    fi
+
+    {
+      printf '[%s]\n' "$section_name"
+      printf 'baseurl=%s/%s\n' "$base_url" "$repo_name"
+      printf 'name=%s\n' "$display_name"
+      printf 'enabled=0\n'
+      printf 'gpgcheck=1\n'
+      if [[ -n "$gpgkey_value" ]]; then
+        printf 'gpgkey=%s\n' "$gpgkey_value"
+      fi
+      printf 'skip_if_unavailable=True\n\n'
+    } >> "${repo_file}.new"
+  done < <(
+    find "$source_dir" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | LC_ALL=C sort
+  )
+
+  mv "${repo_file}.new" "$repo_file"
+}
+
+refresh_repo_indexes() {
+  ensure_dir "$REPOSITORY_KEYS_DIR"
 
   (
-    cd "$source_dir"
-    ls | gawk -v base_url="$base_url" -v prefix="$prefix" '{
-      print "[" $1 "]"
-      print "baseurl=" base_url "/" $1
-      print "name=" prefix "-" $1
-      print "enabled=0"
-      print "gpgcheck=0"
-      print "skip_if_unavailable=True"
-      print ""
-    }' > "$repo_file"
+    cd "$REPOSITORY_ROOT"
+    find . -maxdepth 1 -type f -name '*.repo' -printf '%f\n' | LC_ALL=C sort > "$REPOSITORY_LIST_FILE"
+  )
+
+  (
+    cd "$REPOSITORY_KEYS_DIR"
+    find . -maxdepth 1 -type f ! -name 'list' -printf '%f\n' | LC_ALL=C sort > "$REPOSITORY_KEYS_LIST_FILE"
   )
 }
+
+import_nisp_isos() {
+  local iso_path
+  local staging_dir
+  local version
+  local target_dir
+  local target_repo_file
+  local base_url
+  local gpgkey_value
+  local -a nisp_key_paths
+  local -a nisp_key_names
+
+  shopt -s nullglob
+  for iso_path in $NISP_ISO_GLOB; do
+    nisp_key_paths=()
+    nisp_key_names=()
+    log "Inspecting NISP ISO ${iso_path}"
+    staging_dir=$(mktemp -d)
+    bsdtar -xf "$iso_path" -C "$staging_dir"
+
+    [[ -f "${staging_dir}/nisp.version" ]] || fail "NISP ISO missing nisp.version: ${iso_path}"
+    version=$(awk '/MEDIA:/ { print $2; exit }' "${staging_dir}/nisp.version")
+    [[ -n "$version" ]] || fail "Unable to derive NISP version from ${iso_path}"
+
+    target_dir="${REPOSITORY_ROOT}/${version}"
+    target_repo_file="${REPOSITORY_ROOT}/${version}.repo"
+
+    if [[ -f "$target_repo_file" ]]; then
+      log "NISP version ${version} already present, removing ${iso_path}"
+      rm -rf "$staging_dir"
+      rm -f "$iso_path"
+      continue
+    fi
+
+    [[ ! -e "$target_dir" ]] || fail "Target directory already exists for NISP version ${version}: ${target_dir}"
+
+    while IFS= read -r key_path; do
+      nisp_key_paths+=("$key_path")
+    done < <(find "$staging_dir" -maxdepth 1 -type f -name '*-GPG-KEY*' | LC_ALL=C sort)
+
+    if [[ ${#nisp_key_paths[@]} -gt 0 ]]; then
+      while IFS= read -r key_name; do
+        nisp_key_names+=("$key_name")
+      done < <(copy_key_files "$REPOSITORY_KEYS_DIR" "${nisp_key_paths[@]}")
+    fi
+
+    mv "$staging_dir" "$target_dir"
+    base_url="${REPOSITORY_BASEURL%/}/${version}"
+    gpgkey_value=$(format_gpgkey_value "${nisp_key_names[@]}")
+
+    generate_repo_file "$target_dir" "$target_repo_file" "$base_url" "$version" "$version" "$gpgkey_value"
+    rm -f "$iso_path"
+    log "Imported NISP version ${version} into ${target_dir}"
+  done
+  shopt -u nullglob
+}
+
+ensure_dir "$REPOSITORY_ROOT"
+ensure_dir "$REPOSITORY_KEYS_DIR"
 
 sync_repos "$OL8_REPOSITORY_ROOT" "${OL8_REPOS[@]}"
 sync_ol9_repos
 
-generate_repo_file "$OL8_REPOSITORY_ROOT" "${TRUNK_ROOT}/repository/OL8.repo" "$OL8_REPO_FILE_BASEURL" "OL8"
-generate_repo_file "$OL9_REPOSITORY_ROOT" "${TRUNK_ROOT}/repository/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9"
+mapfile -t repository_key_names < <(copy_key_files "$REPOSITORY_KEYS_DIR" "${REPOSITORY_GPG_KEY_FILES[@]}")
+repository_gpgkey_value=$(format_gpgkey_value "${repository_key_names[@]}")
 
-transfer_dir "${TRUNK_ROOT}/repository" "$REPOSITORY_TRANSFER_NAME"
+generate_repo_file "$OL8_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL8.repo" "$OL8_REPO_FILE_BASEURL" "OL8" "" "$repository_gpgkey_value"
+generate_repo_file "$OL9_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9" "" "$repository_gpgkey_value"
+import_nisp_isos
+refresh_repo_indexes
+
+transfer_dir "$REPOSITORY_ROOT" "$REPOSITORY_TRANSFER_NAME"

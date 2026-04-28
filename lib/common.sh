@@ -78,7 +78,8 @@ transfer_dir() {
 
   ensure_dir "$transfer_dir"
   manifest_tmp=$(mktemp)
-  
+  write_manifest_from_dir "$source_dir" "$manifest_tmp"
+
   rsync -rtvh \
   --inplace \
   --no-acls \
@@ -87,8 +88,7 @@ transfer_dir() {
   --ignore-errors \
   --info=progress2 \
   "${source_dir%/}/" "${transfer_dir%/}/"
-  write_manifest_from_dir "$source_dir" "$manifest_tmp"
-  rsync "${transfer_dir%/}/.transfer-manifest.tsv"
+  install -m 0644 "$manifest_tmp" "${transfer_dir%/}/.transfer-manifest.tsv"
   rm -f "$manifest_tmp"
   log "moved directory ${source_dir} -> ${transfer_dir}"
 }

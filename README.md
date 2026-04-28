@@ -83,7 +83,15 @@ The older nested pattern `/trunk/transfer/trunk/...` is not intended and is no l
 
 ### Repository Transfer
 
-`repositories/sync-repositories.sh` mirrors the configured OL8 and OL9 repositories into `/trunk/repository`. It then generates repo definition files such as `OL8.repo` and `OL9.repo` and stages the full directory into `/trunk/transfer/repository` with `rsync`.
+`repositories/sync-repositories.sh` mirrors the configured OL8 and OL9 repositories into `/trunk/repository`. It also supports a manual NISP import path: an operator places a NISP ISO in `/tmp`, and the script imports it into `/trunk/repository/<version>/` using `bsdtar`, generates `/trunk/repository/<version>.repo`, copies discovered GPG keys into `/trunk/repository/keys/`, and regenerates the top-level `list` files used by the downstream repository service.
+
+The repository output now includes:
+
+- `OL8/` and `OL9/` mirrored RPM content
+- `<version>/` extracted NISP content for each imported ISO version
+- `OL8.repo`, `OL9.repo`, and `<version>.repo` repo definition files
+- `keys/` with published GPG keys
+- `list` and `keys/list` indexes for downstream consumption
 
 The OL9 sync still uses a containerized path because that matches the upstream tooling assumptions more reliably than forcing the host to carry all dependencies directly.
 
@@ -154,6 +162,8 @@ bash nexus/export-nexus-backup.sh
 
 Use `registries/prefetch-registries.sh` when you want a preflight check before the full registry sync. It expands the current image, kubeadm, and chart inputs into a concrete check list, verifies that the upstream sources can be accessed, and writes a report to `registries/tmp/prefetch/registry-source-check.tsv`.
 It also writes a failed-only report to `registries/tmp/prefetch/registry-source-check-failed.tsv` for quicker operator review.
+
+For the NISP repository path, the upstream acquisition step is manual. Place the ISO in `/tmp` before running `repositories/sync-repositories.sh`. The script will import only versions that do not already have a matching `/trunk/repository/<version>.repo`, then delete the processed ISO from `/tmp`.
 
 Use `registries/reconcile-zot-images.sh` when you want to compare the live Zot image content under `public` with the desired image set from `registries/outside.yaml` and optional kubeadm images. It defaults to dry-run and only applies deletions when run with `--apply`.
 
