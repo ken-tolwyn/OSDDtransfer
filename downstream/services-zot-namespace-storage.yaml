@@ -1,0 +1,361 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: services
+---
+# Label one node with `zot.storage/internet=true` and expose `/mnt/transfer/registry`
+# there before applying this manifest.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: zot-internet-pv
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: zot-internet-local
+  local:
+    path: /mnt/transfer/registry
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: zot.storage/internet
+          operator: In
+          values:
+          - "true"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-internet-pvc
+  namespace: services
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: zot-internet-local
+  volumeName: zot-internet-pv
+---
+# Label one node with `zot.storage/default=true` for the default OCI namespace storage.
+# This can be the same node as the internet storage node.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: zot-default-pv
+spec:
+  capacity:
+    storage: 300Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: zot-default-local
+  local:
+    path: /var/lib/zot-default
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: zot.storage/default
+          operator: In
+          values:
+          - "true"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-default-pvc
+  namespace: services
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 300Gi
+  storageClassName: zot-default-local
+  volumeName: zot-default-pv
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-namespace-storage-config
+  namespace: services
+data:
+  config.json: |
+    {
+      "distSpecVersion": "1.1.1",
+      "storage": {
+        "rootDirectory": "/var/lib/zot-default",
+        "gc": true,
+        "gcDelay": "2h",
+        "gcInterval": "1h",
+        "retention": {
+          "dryRun": false,
+          "delay": "24h",
+          "policies": [
+            {
+              "repositories": ["**"],
+              "keepTags": [
+                {
+                  "patterns": ["-[0-9a-f]{8}$"],
+                  "pushedWithin": "168h"
+                },
+                {
+                  "pushedWithin": "196h"
+                }
+              ]
+            }
+          ]
+        },
+        "subPaths": {
+          "/internet": {
+            "rootDirectory": "/var/lib/zot-internet",
+            "gc": true,
+            "gcDelay": "2h",
+            "gcInterval": "1h",
+            "retention": {
+              "dryRun": false,
+              "delay": "24h",
+              "policies": [
+                {
+                  "repositories": ["**"],
+                  "keepTags": []
+                }
+              ]
+            }
+          }
+        }
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "5000",
+        "externalUrl": "https://zot.k.mis.local",
+        "accessControl": {
+          "repositories": {
+            "**": {
+              "policies": [
+                {
+                  "groups": ["source"],
+                  "actions": ["create", "read", "update"]
+                },
+                {
+                  "users": ["gitlab"],
+                  "actions": ["create", "read", "update"]
+                },
+                {
+                  "users": ["user"],
+                  "actions": ["read"]
+                }
+              ],
+              "defaultPolicy": []
+            }
+          },
+          "adminPolicy": {
+            "users": ["admin", "anilsen"],
+            "actions": ["create", "read", "update", "delete"]
+          }
+        },
+        "auth": {
+          "openid": {
+            "providers": {
+              "gitlab": {
+                "issuer": "https://gitlab.mis.local",
+                "credentialsFile": "/secret/gitlab.json",
+                "scopes": ["openid", "read_api", "read_user", "profile", "email"]
+              }
+            }
+          },
+          "htpasswd": {
+            "path": "/secret/htpasswd"
+          },
+          "apikey": true
+        }
+      },
+      "log": {
+        "level": "debug",
+        "audit": "/logs/audit.log"
+      },
+      "extensions": {
+        "search": {
+          "enable": true,
+          "cve": {
+            "updateInterval": "12h",
+            "trivy": {
+              "dbrepository": "zot.k.mis.local/internet/trivy-db",
+              "javadbrepository": "zot.k.mis.local/internet/trivy-java-db"
+            }
+          }
+        },
+        "ui": {
+          "enable": true
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zot-namespace-storage-secret
+  namespace: services
+type: Opaque
+stringData:
+  htpasswd: |
+    admin:$2y$05$vmiurPmJvHylk78HHFWuruFFVePlit9rZWGA/FbZfTEmNRneGJtha
+    user:$2y$05$L86zqQDfH5y445dcMlwu6uHv.oXFgT6AiJCwpv3ehr7idc0rI3S2G
+    gitlab:$2y$05$KJPFDdD.Q2CQbo7s9yPHUOb8E3xqhXfpr41vzfmNKs7SoYMWPDLa6
+  # Replace with the real GitLab OIDC client before enabling interactive login.
+  gitlab.json: |
+    {
+      "clientid": "replace-me",
+      "clientsecret": "replace-me"
+    }
+  # Replace with the real CA bundle if GitLab OIDC TLS validation needs it.
+  gitlab.pem: |
+    -----BEGIN CERTIFICATE-----
+    -----END CERTIFICATE-----
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zot
+  namespace: services
+  labels:
+    app: zot
+spec:
+  serviceName: zot
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zot
+  template:
+    metadata:
+      labels:
+        app: zot
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: zot.storage/internet
+                operator: In
+                values:
+                - "true"
+              - key: zot.storage/default
+                operator: In
+                values:
+                - "true"
+      containers:
+      - name: zot
+        image: zot.k.mis.local/internet/project-zot/zot-linux-amd64:v2.1.6
+        imagePullPolicy: IfNotPresent
+        args:
+        - serve
+        - /etc/zot/config.json
+        env:
+        - name: SSL_CERT_FILE
+          value: /secret/gitlab.pem
+        ports:
+        - containerPort: 5000
+          name: http
+        startupProbe:
+          httpGet:
+            path: /v2/
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: Basic dXNlcjp1c2Vy
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /v2/
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: Basic dXNlcjp1c2Vy
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /v2/
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: Basic dXNlcjp1c2Vy
+          periodSeconds: 10
+        volumeMounts:
+        # Default OCI namespaces land here.
+        - name: zot-default-storage
+          mountPath: /var/lib/zot-default
+        # The `/internet` OCI namespace lands here, which maps to /mnt/transfer/registry.
+        - name: zot-internet-storage
+          mountPath: /var/lib/zot-internet
+        - name: zot-config
+          mountPath: /etc/zot/config.json
+          subPath: config.json
+          readOnly: true
+        - name: zot-secret
+          mountPath: /secret
+          readOnly: true
+        - name: logs
+          mountPath: /logs
+      volumes:
+      - name: zot-default-storage
+        persistentVolumeClaim:
+          claimName: zot-default-pvc
+      - name: zot-internet-storage
+        persistentVolumeClaim:
+          claimName: zot-internet-pvc
+      - name: zot-config
+        configMap:
+          name: zot-namespace-storage-config
+      - name: zot-secret
+        secret:
+          secretName: zot-namespace-storage-secret
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot
+  namespace: services
+  labels:
+    app: zot
+spec:
+  selector:
+    app: zot
+  ports:
+  - name: http
+    port: 5000
+    targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zot
+  namespace: services
+  annotations:
+    cert-manager.io/cluster-issuer: ca-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - zot.k.mis.local
+    secretName: zot-tls
+  rules:
+  - host: zot.k.mis.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: zot
+            port:
+              number: 5000

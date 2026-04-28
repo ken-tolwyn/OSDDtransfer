@@ -1,0 +1,239 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: services
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: zot-registry-pv
+spec:
+  capacity:
+    storage: 500Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: zot-local
+  local:
+    path: /mnt/transfer/registry
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - misvh7.mis.local
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-registry-pvc
+  namespace: services
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 500Gi
+  storageClassName: zot-local
+  volumeName: zot-registry-pv
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-config
+  namespace: services
+data:
+  config.json: |
+    {
+      "distSpecVersion": "1.1.1",
+      "storage": {
+        "rootDirectory": "/var/lib/zot",
+        "gc": true,
+        "gcDelay": "2h",
+        "gcInterval": "72h",
+        "retention": {
+          "dryRun": false,
+          "delay": "72h",
+          "policies": [
+            {
+              "repositories": ["internet/**"],
+              "keepTags": [
+                {
+                  "pushedWithin": "2160h"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "5000",
+        "externalUrl": "https://zot.k.mis.local",
+        "accessControl": {
+          "repositories": {
+            "**": {
+              "defaultPolicy": [
+                {
+                  "actions": ["read"]
+                }
+              ],
+              "policies": [
+                {
+                  "groups": ["zot-admins"],
+                  "actions": ["create", "read", "update", "delete"]
+                }
+              ]
+            }
+          },
+          "adminPolicy": {
+            "groups": ["zot-admins"],
+            "actions": ["create", "read", "update", "delete"]
+          }
+        },
+        "auth": {
+          "htpasswd": {
+            "path": "/secret/htpasswd"
+          },
+          "openid": {
+            "providers": {
+              "keycloak": {
+                "issuer": "https://keycloak.k.mis.local/realms/services",
+                "credentialsFile": "/secret/keycloak.json",
+                "scopes": ["openid", "profile", "email", "groups"]
+              }
+            }
+          }
+        }
+      },
+      "log": {
+        "level": "info"
+      },
+      "extensions": {
+        "search": {
+          "enable": true,
+          "cve": {
+            "updateInterval": "12h",
+            "trivy": {
+              "dbrepository": "zot.services.svc.cluster.local:5000/internet/trivy-db",
+              "javadbrepository": "zot.services.svc.cluster.local:5000/internet/trivy-java-db"
+            }
+          }
+        },
+        "ui": {
+          "enable": true,
+          "metaInfo": {
+            "title": "MIS Zot Registry"
+          }
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: zot-auth
+  namespace: services
+type: Opaque
+stringData:
+  htpasswd: |
+    admin:$2y$05$replace.with.real.htpasswd.hash.value.for.admin
+  keycloak.json: |
+    {
+      "clientid": "replace-me",
+      "clientsecret": "replace-me"
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zot
+  namespace: services
+  labels:
+    app: zot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zot
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: zot
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: misvh7.mis.local
+      containers:
+      - name: zot
+        image: ghcr.io/project-zot/zot-linux-amd64:latest
+        imagePullPolicy: Always
+        args:
+        - serve
+        - /etc/zot/config.json
+        ports:
+        - containerPort: 5000
+          name: http
+        volumeMounts:
+        - name: zot-storage
+          mountPath: /var/lib/zot
+        - name: zot-config
+          mountPath: /etc/zot/config.json
+          subPath: config.json
+          readOnly: true
+        - name: zot-auth
+          mountPath: /secret
+          readOnly: true
+      volumes:
+      - name: zot-storage
+        persistentVolumeClaim:
+          claimName: zot-registry-pvc
+      - name: zot-config
+        configMap:
+          name: zot-config
+      - name: zot-auth
+        secret:
+          secretName: zot-auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot
+  namespace: services
+  labels:
+    app: zot
+spec:
+  selector:
+    app: zot
+  ports:
+  - name: http
+    port: 5000
+    targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zot
+  namespace: services
+  annotations:
+    cert-manager.io/cluster-issuer: ca-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - zot.k.mis.local
+    secretName: zot-k-mis-local-tls
+  rules:
+  - host: zot.k.mis.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: zot
+            port:
+              number: 5000

@@ -1,0 +1,267 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: services
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: zot-production-pv
+spec:
+  capacity:
+    storage: 300Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: zot-local
+  local:
+    path: /mnt/transfer/registry
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - misvh7.mis.local
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-production-pvc
+  namespace: services
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 300Gi
+  storageClassName: zot-local
+  volumeName: zot-production-pv
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-production-config
+  namespace: services
+data:
+  config.json: |
+    {
+      "storage": {
+        "rootDirectory": "/var/lib/registry",
+        "gc": true,
+        "gcDelay": "2h",
+        "gcInterval": "1h",
+        "retention": {
+          "dryRun": false,
+          "delay": "24h",
+          "policies": [
+            {
+              "repositories": ["internet/**"],
+              "keepTags": []
+            },
+            {
+              "repositories": ["**"],
+              "keepTags": [
+                {
+                  "patterns": ["-[0-9a-f]{8}$"],
+                  "pushedWithin": "168h"
+                },
+                {
+                  "pushedWithin": "196h"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "5000",
+        "externalUrl": "https://zot.k.mis.local",
+        "accessControl": {
+          "repositories": {
+            "**": {
+              "policies": [
+                {
+                  "groups": ["source"],
+                  "actions": ["create", "read", "update"]
+                },
+                {
+                  "users": ["gitlab"],
+                  "actions": ["create", "read", "update"]
+                },
+                {
+                  "users": ["user"],
+                  "actions": ["read"]
+                }
+              ],
+              "defaultPolicy": []
+            }
+          },
+          "adminPolicy": {
+            "users": ["admin", "anilsen"],
+            "actions": ["create", "read", "update", "delete"]
+          }
+        },
+        "auth": {
+          "openid": {
+            "providers": {
+              "gitlab": {
+                "issuer": "https://gitlab.mis.local",
+                "credentialsFile": "/secret/gitlab.json",
+                "scopes": ["openid", "read_api", "read_user", "profile", "email"]
+              }
+            }
+          },
+          "htpasswd": {
+            "path": "/secret/htpasswd"
+          },
+          "apikey": true
+        }
+      },
+      "log": {
+        "level": "debug",
+        "audit": "/logs/audit.log"
+      },
+      "extensions": {
+        "search": {
+          "enable": true,
+          "cve": {
+            "updateInterval": "12h",
+            "trivy": {
+              "dbrepository": "zot.k.mis.local/internet/trivy-db",
+              "javadbrepository": "zot.k.mis.local/internet/trivy-java-db"
+            }
+          }
+        },
+        "ui": {
+          "enable": true
+        }
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zot
+  namespace: services
+  labels:
+    app: zot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zot
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: zot
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: misvh7.mis.local
+      containers:
+      - name: zot
+        image: zot.k.mis.local/internet/project-zot/zot-linux-amd64:v2.1.6
+        imagePullPolicy: IfNotPresent
+        args:
+        - serve
+        - /etc/zot/config.json
+        env:
+        - name: SSL_CERT_FILE
+          value: /secret/gitlab.pem
+        ports:
+        - containerPort: 5000
+          name: http
+        startupProbe:
+          httpGet:
+            path: /v2/
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: Basic dXNlcjp1c2Vy
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /v2/
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: Basic dXNlcjp1c2Vy
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /v2/
+            port: http
+            httpHeaders:
+            - name: Authorization
+              value: Basic dXNlcjp1c2Vy
+          periodSeconds: 10
+        volumeMounts:
+        - name: zot-storage
+          mountPath: /var/lib/registry
+        - name: zot-config
+          mountPath: /etc/zot/config.json
+          subPath: config.json
+          readOnly: true
+        - name: zot-secret
+          mountPath: /secret
+          readOnly: true
+        - name: logs
+          mountPath: /logs
+      volumes:
+      - name: zot-storage
+        persistentVolumeClaim:
+          claimName: zot-production-pvc
+      - name: zot-config
+        configMap:
+          name: zot-production-config
+      - name: zot-secret
+        secret:
+          secretName: zot-production-secret
+      - name: logs
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot
+  namespace: services
+  labels:
+    app: zot
+spec:
+  selector:
+    app: zot
+  ports:
+  - name: http
+    port: 5000
+    targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: zot
+  namespace: services
+  annotations:
+    cert-manager.io/cluster-issuer: ca-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - zot.k.mis.local
+    secretName: zot-tls
+  rules:
+  - host: zot.k.mis.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: zot
+            port:
+              number: 5000
