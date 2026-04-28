@@ -47,7 +47,7 @@ sync_ol9_repos() {
     -e LOCATION="$OL9_REPOSITORY_ROOT" \
     -e REPO_LIST="${OL9_REPOS[*]}" \
     -v "${OL9_REPOSITORY_ROOT}:${OL9_REPOSITORY_ROOT}:z" \
-    "$REPOSITORY_SYNC_IMAGE"
+    "$REPOSITORY_SYNC_IMAGE" &>/dev/null
 }
 
 generate_repo_file() {
@@ -70,10 +70,10 @@ generate_repo_file() {
   )
 }
 
-#sync_repos "$OL8_REPOSITORY_ROOT" "${OL8_REPOS[@]}"
+sync_repos "$OL8_REPOSITORY_ROOT" "${OL8_REPOS[@]}"
 sync_ol9_repos
 
-#generate_repo_file "$OL8_REPOSITORY_ROOT" "${TRUNK_ROOT}/repository/OL8.repo" "$OL8_REPO_FILE_BASEURL" "OL8"
+generate_repo_file "$OL8_REPOSITORY_ROOT" "${TRUNK_ROOT}/repository/OL8.repo" "$OL8_REPO_FILE_BASEURL" "OL8"
 generate_repo_file "$OL9_REPOSITORY_ROOT" "${TRUNK_ROOT}/repository/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9"
 
-stage_transfer_dir "${TRUNK_ROOT}/repository" "$REPOSITORY_TRANSFER_NAME"
+transfer_dir "${TRUNK_ROOT}/repository" "$REPOSITORY_TRANSFER_NAME"

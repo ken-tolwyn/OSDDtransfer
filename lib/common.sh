@@ -68,22 +68,7 @@ write_manifest_from_dir() {
   )
 }
 
-write_manifest_from_files() {
-  local base_dir=$1
-  local manifest_file=$2
-  shift 2
-
-  (
-    cd "$base_dir"
-    for file in "$@"; do
-      rel_path=${file#./}
-      sha=$(sha256sum "$rel_path" | awk '{print $1}')
-      printf '%s\t%s\n' "$sha" "$rel_path"
-    done > "$manifest_file"
-  )
-}
-
-stage_transfer_dir() {
+transfer_dir() {
   local source_dir=$1
   local transfer_name=$2
   local transfer_dir="${TRANSFER_ROOT%/}/${transfer_name}"
@@ -93,57 +78,21 @@ stage_transfer_dir() {
 
   ensure_dir "$transfer_dir"
   manifest_tmp=$(mktemp)
+  
+  rsync -rtvh \
+  --inplace \
+  --no-acls \
+  --no-xattrs \
+  --ignore-missing-args \
+  --ignore-errors \
+  --info=progress2 \
+  "${source_dir%/}/" "${transfer_dir%/}/"
   write_manifest_from_dir "$source_dir" "$manifest_tmp"
-  rsync -rt --delete --stats "${source_dir%/}/" "${transfer_dir%/}/"
-  rsync -t --stats "$manifest_tmp" "${transfer_dir%/}/.transfer-manifest.tsv"
+  rsync "${transfer_dir%/}/.transfer-manifest.tsv"
   rm -f "$manifest_tmp"
-  log "Staged directory ${source_dir} -> ${transfer_dir}"
+  log "moved directory ${source_dir} -> ${transfer_dir}"
 }
 
-stage_transfer_file() {
-  local source_file=$1
-  local transfer_name=$2
-  local transfer_dir="${TRANSFER_ROOT%/}/${transfer_name}"
-  local source_dir
-  local filename
-  local manifest_tmp
-
-  [[ -f "$source_file" ]] || fail "Source file does not exist: $source_file"
-
-  ensure_dir "$transfer_dir"
-  source_dir=$(dirname "$source_file")
-  filename=$(basename "$source_file")
-  manifest_tmp=$(mktemp)
-  write_manifest_from_files "$source_dir" "$manifest_tmp" "$filename"
-  rsync -t --stats "$source_file" "${transfer_dir%/}/"
-  rsync -t --stats "$manifest_tmp" "${transfer_dir%/}/.transfer-manifest.tsv"
-  rm -f "$manifest_tmp"
-  log "Staged file ${source_file} -> ${transfer_dir}"
-}
-
-stage_transfer_files() {
-  local transfer_name=$1
-  shift
-  local transfer_dir="${TRANSFER_ROOT%/}/${transfer_name}"
-  local first_file
-  local base_dir
-  local relative_files=()
-  local manifest_tmp
-  local file
-
-  ensure_dir "$transfer_dir"
-  first_file=$1
-  base_dir=$(dirname "$first_file")
-  manifest_tmp=$(mktemp)
-  for file in "$@"; do
-    relative_files+=("$(basename "$file")")
-  done
-  write_manifest_from_files "$base_dir" "$manifest_tmp" "${relative_files[@]}"
-  rsync -t --stats "$@" "${transfer_dir%/}/"
-  rsync -t --stats "$manifest_tmp" "${transfer_dir%/}/.transfer-manifest.tsv"
-  rm -f "$manifest_tmp"
-  log "Staged files into ${transfer_dir}"
-}
 
 run_oras() {
   podman run --rm \

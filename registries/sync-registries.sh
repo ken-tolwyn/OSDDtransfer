@@ -64,6 +64,7 @@ copy_image() {
   log "Copying ${source_ref} -> ${destination_ref}"
   skopeo copy \
     --dest-tls-verify=false \
+    --quite \
     docker://${source_ref} \
     docker://${destination_ref} || echo "failed"
 }
@@ -116,4 +117,4 @@ if [[ "${SYNC_HELM_CHARTS:-true}" == "true" ]]; then
   sync_secondary_registry_content
 fi
 
-stage_transfer_dir "$REGISTRY_STORAGE_DIR" "$REGISTRY_TRANSFER_NAME"
+transfer_dir "$REGISTRY_STORAGE_DIR" "$REGISTRY_TRANSFER_NAME"
