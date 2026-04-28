@@ -1,0 +1,122 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: services
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: repo-http
+  namespace: services
+  labels:
+    app: repo-http
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: repo-http
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: repo-http
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: misvh7.mis.local
+      securityContext:
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+      - name: nginx
+        image: zot.k.mis.local/internet/chainguard/nginx:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
+        - name: repository
+          mountPath: /usr/share/nginx/html
+          readOnly: true
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: repo-http-nginx
+      - name: repository
+        hostPath:
+          path: /mnt/transfer/repository
+          type: DirectoryOrCreate
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: repo-http-nginx
+  namespace: services
+data:
+  nginx.conf: |
+    events {}
+    http {
+      include /etc/nginx/mime.types;
+      server {
+        listen 8080;
+        root /usr/share/nginx/html;
+        index index.html;
+
+        location = /repo {
+          return 301 /;
+        }
+
+        location ^~ /repo/ {
+          rewrite ^/repo/(.*)$ /$1 permanent;
+        }
+
+        location / {
+          autoindex on;
+          try_files $uri $uri/ =404;
+        }
+      }
+    }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: repo-http
+  namespace: services
+  labels:
+    app: repo-http
+spec:
+  selector:
+    app: repo-http
+  ports:
+  - name: http
+    port: 80
+    targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: repo-http
+  namespace: services
+  annotations:
+    cert-manager.io/cluster-issuer: ca-issuer
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - repo.k.mis.local
+    secretName: repo-k-mis-local-tls
+  rules:
+  - host: repo.k.mis.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: repo-http
+            port:
+              number: 80
