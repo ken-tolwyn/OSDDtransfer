@@ -3,6 +3,42 @@ kind: Namespace
 metadata:
   name: services
 ---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: repo-http-pv
+spec:
+  capacity:
+    storage: 200Gi
+  accessModes:
+  - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: repo-local
+  local:
+    path: /mnt/transfer/repository
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - misvh7.mis.local
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: repo-http-pvc
+  namespace: services
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi
+  storageClassName: repo-local
+  volumeName: repo-http-pv
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -47,9 +83,8 @@ spec:
         configMap:
           name: repo-http-nginx
       - name: repository
-        hostPath:
-          path: /mnt/transfer/repository
-          type: DirectoryOrCreate
+        persistentVolumeClaim:
+          claimName: repo-http-pvc
 ---
 apiVersion: v1
 kind: ConfigMap
