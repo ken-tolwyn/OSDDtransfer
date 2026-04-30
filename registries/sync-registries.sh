@@ -64,7 +64,7 @@ copy_image() {
   log "Copying ${source_ref} -> ${destination_ref}"
   skopeo copy \
     --dest-tls-verify=false \
-    --quite \
+    -q \
     docker://${source_ref} \
     docker://${destination_ref} || echo "failed"
 }

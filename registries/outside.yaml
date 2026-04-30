@@ -185,9 +185,9 @@ ghcr.io:
           - "v1.27.1"
           - "v1.27.1-debug"
       anchore/grype:
-          - "v0.91.0"
-          - "v0.94.0"
-          - "v0.94.0-debug"
+          - "latest"
+      anchore/grype-db:
+          - latest
       tektoncd/chains/controller-92006fd957c0afd31de6a40b3e33b39f:
           - "v0.23.0"
       tektoncd/pipeline/controller-10a3e32792f33651396d02b6855a6e36:
@@ -224,6 +224,12 @@ ghcr.io:
           - "v1.0.8"
       project-zot/zot-linux-amd64:
           - "latest"
+      aquasecurity/trivy:
+          - latest
+      aquasecurity/trivy-db:
+          - 2
+      aquasecurity/trivy-java-db:
+          - 1
 
 cgr.dev:
   images:

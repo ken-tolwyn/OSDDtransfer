@@ -201,13 +201,13 @@ ensure_dir "$REPOSITORY_ROOT"
 ensure_dir "$REPOSITORY_KEYS_DIR"
 
 sync_repos "$OL8_REPOSITORY_ROOT" "${OL8_REPOS[@]}"
-sync_ol9_repos
+#sync_ol9_repos
 
 mapfile -t repository_key_names < <(copy_key_files "$REPOSITORY_KEYS_DIR" "${REPOSITORY_GPG_KEY_FILES[@]}")
 repository_gpgkey_value=$(format_gpgkey_value "${repository_key_names[@]}")
 
 generate_repo_file "$OL8_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL8.repo" "$OL8_REPO_FILE_BASEURL" "OL8" "" "$repository_gpgkey_value"
-generate_repo_file "$OL9_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9" "" "$repository_gpgkey_value"
+#generate_repo_file "$OL9_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9" "" "$repository_gpgkey_value"
 import_nisp_isos
 refresh_repo_indexes
 
