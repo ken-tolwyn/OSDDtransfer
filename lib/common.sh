@@ -81,13 +81,13 @@ transfer_dir() {
   manifest_tmp=$(mktemp)
   
 
-  # rsync -rtvh \
-  # --inplace \
-  # --no-acls \
-  # --no-xattrs \
-  # --ignore-missing-args \
-  # --ignore-errors \
-  # --info=progress2 \
+  rsync -rtvh \
+  --inplace \
+  --no-acls \
+  --no-xattrs \
+  --ignore-missing-args \
+  --ignore-errors \
+  --info=progress2 \
   "${source_dir%/}/" "${transfer_dir%/}/"
   install -m 0644 "$manifest_tmp" "${transfer_dir%/}/.transfer-manifest.tsv"
   write_manifest_from_dir "$source_dir" "$manifest_tmp"

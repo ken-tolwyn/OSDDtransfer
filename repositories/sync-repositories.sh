@@ -25,7 +25,7 @@ sync_repos() {
 
   for repo in "$@"; do
     log "Syncing repository ${repo} into ${destination_root}"
-    reposync \
+    if ! reposync \
       --gpgcheck \
       --newest-only \
       --delete \
@@ -34,7 +34,9 @@ sync_repos() {
       --exclude='*.src,*.nosrc' \
       -p "$destination_root" \
       --remote-time \
-      --repoid "$repo" &> log.reposync
+      --repoid "$repo" &> log.reposync; then
+    log "Failed to sync repository ${repo}"
+  fi
   done
 }
 
