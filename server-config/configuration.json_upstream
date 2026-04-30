@@ -1,0 +1,45 @@
+{
+
+  "peers": {
+    "unc": {
+      "mode": "upstream",
+      "public_interface": "enp6s0",
+      "beacon_ip": "192.168.10.1",
+      "diodes": {
+        "DataDiode": {
+          "interface": "enp7s0"
+        }
+      },
+      "channels": {
+        "registry": {
+          "type": "file",
+          "id": 1,
+          "rate_limit": 22671680,
+          "directory_idle_time": 0,
+          "path": "/trunk/transfer/registry"
+        },
+        "repository": {
+          "type": "file",
+          "id": 2,
+          "rate_limit": 22671680,
+          "directory_idle_time": 0,
+          "path": "/trunk/transfer/repository"
+        },
+        "nexus": {
+          "type": "file",
+          "id": 3,
+          "rate_limit": 22671680,
+          "directory_idle_time": 0,
+          "path": "/trunk/transfer/nexus"
+        },
+       "hauler": {
+          "type": "file",
+          "id": 4,
+          "rate_limit": 22671680,
+          "directory_idle_time": 0,
+          "path": "/trunk/transfer/misc"
+        }
+      }
+    }
+  }
+}

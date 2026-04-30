@@ -30,6 +30,7 @@ sync_repos() {
       --newest-only \
       --delete \
       --download-metadata \
+      -c ${SCRIPT_DIR}/oracle-linux-ol8.repo \
       --exclude='*.src,*.nosrc' \
       -p "$destination_root" \
       --remote-time \

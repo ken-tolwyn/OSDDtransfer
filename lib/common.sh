@@ -2,6 +2,7 @@
 
 COMMON_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+
 log() {
   printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*"
 }
@@ -78,18 +79,18 @@ transfer_dir() {
 
   ensure_dir "$transfer_dir"
   manifest_tmp=$(mktemp)
-  write_manifest_from_dir "$source_dir" "$manifest_tmp"
+  
 
-  rsync -rtvh \
-  --inplace \
-  --no-acls \
-  --no-xattrs \
-  --ignore-missing-args \
-  --ignore-errors \
-  --info=progress2 \
+  # rsync -rtvh \
+  # --inplace \
+  # --no-acls \
+  # --no-xattrs \
+  # --ignore-missing-args \
+  # --ignore-errors \
+  # --info=progress2 \
   "${source_dir%/}/" "${transfer_dir%/}/"
   install -m 0644 "$manifest_tmp" "${transfer_dir%/}/.transfer-manifest.tsv"
-  rm -f "$manifest_tmp"
+  write_manifest_from_dir "$source_dir" "$manifest_tmp"
   log "moved directory ${source_dir} -> ${transfer_dir}"
 }
 
@@ -100,3 +101,5 @@ run_oras() {
     -v "$(pwd):/workspace:Z" \
     "${ORAS_IMAGE}" "$@"
 }
+
+load_common_config "$COMMON_DIR"

@@ -38,7 +38,7 @@ wait_for_jobs() {
 }
 
 start_job repositories "$SCRIPT_DIR/repositories/sync-repositories.sh"
-start_job registries "$SCRIPT_DIR/registries/sync-registries.sh"
+#start_job registries "$SCRIPT_DIR/registries/sync-registries.sh"
 #start_job hauler "$SCRIPT_DIR/hauler/sync-hauler.sh"
 
 if [[ -f "$SCRIPT_DIR/nexus/config.env" ]]; then
