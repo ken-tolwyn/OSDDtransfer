@@ -115,14 +115,7 @@ transfer_dir() {
   #get_changed_manifest "$staged_manifest_file" "$last_manifest_file" "$manifest_tmp"
 
   # Transfer files
-  rsync -rtvh \
-  --link-dest="${source_dir%/}/" \
-  --no-acls \
-  --no-xattrs \
-  --ignore-missing-args \
-  --ignore-errors \
-  --info=progress2 \
-  "${source_dir%/}/" "${transfer_dir%/}/"
+  cp -rl "${source_dir%/}/"* "${transfer_dir%/}/" 
 
   #--files-from="$manifest_tmp" \
 
