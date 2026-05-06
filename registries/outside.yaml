@@ -186,7 +186,7 @@ ghcr.io:
           - "v1.27.1-debug"
       anchore/grype:
           - "latest"
-          - "latest-debug"
+          - "debug"
       tektoncd/chains/controller-92006fd957c0afd31de6a40b3e33b39f:
           - "v0.23.0"
       tektoncd/pipeline/controller-10a3e32792f33651396d02b6855a6e36:
