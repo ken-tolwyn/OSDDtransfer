@@ -19,7 +19,8 @@ REPOSITORY_KEYS_LIST_FILE="${REPOSITORY_KEYS_DIR}/list"
 
 sync_repos() {
   local destination_root=$1
-  shift
+  local repo_file=$2
+  shift 2
 
   ensure_dir "$destination_root"
 
@@ -30,30 +31,14 @@ sync_repos() {
       --newest-only \
       --delete \
       --download-metadata \
-      -c ${SCRIPT_DIR}/oracle-linux-ol8.repo \
+      -c "$repo_file" \
       --exclude='*.src,*.nosrc' \
       -p "$destination_root" \
       --remote-time \
       --repoid "$repo" &> log.reposync; then
-    log "Failed to sync repository ${repo}"
-  fi
+      log "Failed to sync repository ${repo}"
+    fi
   done
-}
-
-sync_ol9_repos() {
-  require_command podman
-
-  ensure_dir "$OL9_REPOSITORY_ROOT"
-
-  log "Building OL9 repository sync image ${REPOSITORY_SYNC_IMAGE}"
-  podman build -t "$REPOSITORY_SYNC_IMAGE" -f "$REPOSITORY_CONTAINERFILE" "$SCRIPT_DIR"
-
-  log "Syncing OL9 repositories into ${OL9_REPOSITORY_ROOT}"
-  podman run --rm \
-    -e LOCATION="$OL9_REPOSITORY_ROOT" \
-    -e REPO_LIST="${OL9_REPOS[*]}" \
-    -v "${OL9_REPOSITORY_ROOT}:${OL9_REPOSITORY_ROOT}:z" \
-    "$REPOSITORY_SYNC_IMAGE" &>/dev/null
 }
 
 copy_key_files() {
@@ -153,7 +138,7 @@ import_nisp_isos() {
   local gpgkey_value
   local -a nisp_key_paths
   local -a nisp_key_names
-
+  log "for all iso present"
   shopt -s nullglob
   for iso_path in $NISP_ISO_GLOB; do
     nisp_key_paths=()
@@ -266,21 +251,23 @@ update_grype_database() {
 ensure_dir "$REPOSITORY_ROOT"
 ensure_dir "$REPOSITORY_KEYS_DIR"
 
-sync_repos "$OL8_REPOSITORY_ROOT" "${OL8_REPOS[@]}"
-#sync_ol9_repos
 # Grype vulnerability database
 ensure_dir "$REPOSITORY_ROOT/grype"
 GRYPE_TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$GRYPE_TEMP_DIR"' EXIT
 update_grype_database "https://grype.anchore.io/databases/v6" "$REPOSITORY_ROOT/grype" "$GRYPE_TEMP_DIR"
 
+sync_repos "$OL8_REPOSITORY_ROOT" "${SCRIPT_DIR}/oracle-linux-ol8.repo" "${OL8_REPOS[@]}"
+sync_repos "$OL9_REPOSITORY_ROOT" "${SCRIPT_DIR}/oracle-linux-ol9.repo" "${OL9_REPOS[@]}"
 
 mapfile -t repository_key_names < <(copy_key_files "$REPOSITORY_KEYS_DIR" "${REPOSITORY_GPG_KEY_FILES[@]}")
 repository_gpgkey_value=$(format_gpgkey_value "${repository_key_names[@]}")
 
 generate_repo_file "$OL8_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL8.repo" "$OL8_REPO_FILE_BASEURL" "OL8" "" "$repository_gpgkey_value"
-#generate_repo_file "$OL9_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9" "" "$repository_gpgkey_value"
+generate_repo_file "$OL9_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9" "" "$repository_gpgkey_value"
+log "importing NISP"
 import_nisp_isos
+log "refreshing index"
 refresh_repo_indexes
 
 transfer_dir "$REPOSITORY_ROOT" "$REPOSITORY_TRANSFER_NAME"
