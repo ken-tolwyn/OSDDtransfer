@@ -199,11 +199,81 @@ import_nisp_isos() {
   shopt -u nullglob
 }
 
+
+# update_grype_database <grype_db_url> <db_dir> <temp_dir>
+#
+#   grype_db_url  - Base URL for the Grype database, e.g. https://grype.anchore.io/databases/v6
+#   db_dir        - Destination directory where the database files are stored
+#   temp_dir      - Scratch directory used for downloads and verification
+update_grype_database() {
+    local grype_db_url="$1"
+    local db_dir="$2"
+    local temp_dir="$3"
+
+    log "Fetching latest Grype database information..."
+
+    # Get latest database info
+    curl -Lo "$temp_dir/latest.json" "$grype_db_url/latest.json"
+
+    # Parse database information
+    local db_filename db_checksum db_built
+    db_filename=$(jq -r '.path' "$temp_dir/latest.json")
+    db_checksum=$(jq -r '.checksum | sub("^sha256:"; "")' "$temp_dir/latest.json")
+    db_built=$(jq -r '.built' "$temp_dir/latest.json")
+
+    log "Database built: $db_built"
+    log "Database checksum: $db_checksum"
+    log "Database filename: $db_filename"
+
+    # Create database directory if it doesn't exist
+    mkdir -p "$db_dir"
+
+    # Check if we already have this version
+    if [ -f "$db_dir/$db_filename" ]; then
+        local existing_checksum
+        existing_checksum=$(sha256sum "$db_dir/$db_filename" | cut -d' ' -f1)
+        if [ "$existing_checksum" = "$db_checksum" ]; then
+            log "Database is already up to date"
+            return 0
+        fi
+    fi
+
+    # Download database
+    log "Downloading vulnerability database..."
+    curl -Lo "$temp_dir/$db_filename" "$grype_db_url/$db_filename"
+
+    # Verify checksum
+    log "Verifying checksum..."
+    local downloaded_checksum
+    downloaded_checksum=$(sha256sum "$temp_dir/$db_filename" | cut -d' ' -f1)
+
+    if [ "$downloaded_checksum" != "$db_checksum" ]; then
+        log "ERROR: Checksum verification failed!"
+        log "Expected: $db_checksum"
+        log "Got: $downloaded_checksum"
+        return 1
+    fi
+
+    log "Checksum verified successfully"
+
+    # Move database to shared directory
+    mv "$temp_dir/$db_filename" "$temp_dir/latest.json" "$db_dir/"
+    chmod -R a+rX "$db_dir"
+
+    log "Grype vulnerability database updated successfully!"
+}
+
 ensure_dir "$REPOSITORY_ROOT"
 ensure_dir "$REPOSITORY_KEYS_DIR"
 
 sync_repos "$OL8_REPOSITORY_ROOT" "${OL8_REPOS[@]}"
 #sync_ol9_repos
+# Grype vulnerability database
+ensure_dir "$REPOSITORY_ROOT/grype"
+GRYPE_TEMP_DIR=$(mktemp -d)
+trap 'rm -rf "$GRYPE_TEMP_DIR"' EXIT
+update_grype_database "https://grype.anchore.io/databases/v6" "$REPOSITORY_ROOT/grype" "$GRYPE_TEMP_DIR"
+
 
 mapfile -t repository_key_names < <(copy_key_files "$REPOSITORY_KEYS_DIR" "${REPOSITORY_GPG_KEY_FILES[@]}")
 repository_gpgkey_value=$(format_gpgkey_value "${repository_key_names[@]}")
