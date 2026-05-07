@@ -115,7 +115,7 @@ transfer_dir() {
   #get_changed_manifest "$staged_manifest_file" "$last_manifest_file" "$manifest_tmp"
 
   # Transfer files
-  cp -rl "${source_dir%/}/"* "${transfer_dir%/}/" 
+  cp -rln "${source_dir%/}/"* "${transfer_dir%/}/" 
 
   #--files-from="$manifest_tmp" \
 
@@ -123,14 +123,6 @@ transfer_dir() {
   #mv "$staged_manifest_file" "$last_manifest_file"
 
   log "moved directory ${source_dir} -> ${transfer_dir}"
-}
-
-
-run_oras() {
-  podman run --rm \
-    -v "${HOME}/.docker/config.json:/root/.docker/config.json:Z" \
-    -v "$(pwd):/workspace:Z" \
-    "${ORAS_IMAGE}" "$@"
 }
 
 load_common_config "$COMMON_DIR"

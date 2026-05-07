@@ -18,24 +18,26 @@ REPOSITORY_LIST_FILE="${REPOSITORY_ROOT}/list"
 REPOSITORY_KEYS_LIST_FILE="${REPOSITORY_KEYS_DIR}/list"
 
 sync_repos() {
-  local destination_root=$1
+  local version_name=$1
   local repo_file=$2
   shift 2
 
-  ensure_dir "$destination_root"
+  ensure_dir "$REPOSITORY_ROOT/$version_name"
 
   for repo in "$@"; do
-    log "Syncing repository ${repo} into ${destination_root}"
-    if ! reposync \
+    log "Syncing repository ${repo} into $REPOSITORY_ROOT/$version_name"
+    if reposync \
       --gpgcheck \
       --newest-only \
       --delete \
       --download-metadata \
       -c "$repo_file" \
       --exclude='*.src,*.nosrc' \
-      -p "$destination_root" \
+      -p "$REPOSITORY_ROOT/$version_name" \
       --remote-time \
       --repoid "$repo" &> log.reposync; then
+      transfer_dir "$REPOSITORY_ROOT/$version_name/$repo" "$version_name/$repo"
+    else
       log "Failed to sync repository ${repo}"
     fi
   done
@@ -126,6 +128,7 @@ refresh_repo_indexes() {
     cd "$REPOSITORY_KEYS_DIR"
     find . -maxdepth 1 -type f ! -name 'list' -printf '%f\n' | LC_ALL=C sort > "$REPOSITORY_KEYS_LIST_FILE"
   )
+  cp -ln "$REPOSITORY_ROOT/$REPOSITORY_LIST_FILE" 
 }
 
 import_nisp_isos() {
@@ -244,30 +247,32 @@ update_grype_database() {
     # Move database to shared directory
     mv "$temp_dir/$db_filename" "$temp_dir/latest.json" "$db_dir/"
     chmod -R a+rX "$db_dir"
-
+    
     log "Grype vulnerability database updated successfully!"
+    transfer_dir "$REPOSITORY_ROOT/$version_name/$repo" "$version_name/$repo"
 }
 
 ensure_dir "$REPOSITORY_ROOT"
 ensure_dir "$REPOSITORY_KEYS_DIR"
 
 # Grype vulnerability database
-ensure_dir "$REPOSITORY_ROOT/grype"
+ensure_dir "$REPOSITORY_ROOT/grype/v6"
 GRYPE_TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$GRYPE_TEMP_DIR"' EXIT
-update_grype_database "https://grype.anchore.io/databases/v6" "$REPOSITORY_ROOT/grype" "$GRYPE_TEMP_DIR"
+#update_grype_database "https://grype.anchore.io/databases/v6" "$REPOSITORY_ROOT/grype" "$GRYPE_TEMP_DIR"
 
-sync_repos "$OL8_REPOSITORY_ROOT" "${SCRIPT_DIR}/oracle-linux-ol8.repo" "${OL8_REPOS[@]}"
-sync_repos "$OL9_REPOSITORY_ROOT" "${SCRIPT_DIR}/oracle-linux-ol9.repo" "${OL9_REPOS[@]}"
+#Sync repos
+#sync_repos "OL8" "${SCRIPT_DIR}/oracle-linux-ol8.repo" "${OL8_REPOS[@]}"
+#sync_repos "OL9" "${SCRIPT_DIR}/oracle-linux-ol9.repo" "${OL9_REPOS[@]}"
 
 mapfile -t repository_key_names < <(copy_key_files "$REPOSITORY_KEYS_DIR" "${REPOSITORY_GPG_KEY_FILES[@]}")
 repository_gpgkey_value=$(format_gpgkey_value "${repository_key_names[@]}")
 
-generate_repo_file "$OL8_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL8.repo" "$OL8_REPO_FILE_BASEURL" "OL8" "" "$repository_gpgkey_value"
-generate_repo_file "$OL9_REPOSITORY_ROOT" "${REPOSITORY_ROOT}/OL9.repo" "$OL9_REPO_FILE_BASEURL" "OL9" "" "$repository_gpgkey_value"
-log "importing NISP"
-import_nisp_isos
-log "refreshing index"
-refresh_repo_indexes
+generate_repo_file "${REPOSITORY_ROOT}/OL8" "${REPOSITORY_ROOT}/OL8.repo" "$REPOSITORY_BASEURL/OL8" "OL8" "" "$repository_gpgkey_value"
+generate_repo_file "${REPOSITORY_ROOT}/OL9" "${REPOSITORY_ROOT}/OL9.repo" "$REPOSITORY_BASEURL/OL9" "OL9" "" "$repository_gpgkey_value"
 
-transfer_dir "$REPOSITORY_ROOT" "$REPOSITORY_TRANSFER_NAME"
+log "importing NISP"
+#import_nisp_isos
+log "refreshing index"
+#refresh_repo_indexes
+#transfer_dir "$REPOSITORY_ROOT"/* "$REPOSITORY_TRANSFER_NAME"
