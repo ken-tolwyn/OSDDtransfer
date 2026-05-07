@@ -55,82 +55,23 @@ ensure_dir() {
   mkdir -p "$1"
 }
 
-write_manifest_from_dir() {
-  local source_dir=$1
-  local manifest_file=$2
-log "writting manifest file into $manifest_file"
-  (
-    cd "$source_dir"
-    find . -type f | LC_ALL=C sort | while IFS= read -r file; do
-      rel_path=${file#./}
-      sha=1
-      #sha=$(sha256sum "$rel_path" | awk '{print $1}')
-      printf '%s\t%s\n' "$sha" "$rel_path"
-    done > "$manifest_file"
-  )
+transfer() {
+  local project=$1
+  local item=$2
+  local source_path="${TRUNK_ROOT%/}/${project%/}/${item}"
+  local transfer_path="${TRANSFER_ROOT%/}/${project%/}/${item}"
 
-  # Create staged manifest file
-  local staged_manifest_file="${manifest_file%.tsv}-staged.tsv"
-  cp "$manifest_file" "$staged_manifest_file"
+  [[ -e "$source_path" ]] || fail "Source path does not exist: $source_path"
 
-  # Create last manifest file if it doesn't exist
-  local last_manifest_file="${manifest_file%.tsv}-last.tsv"
-  if [[ ! -f "$last_manifest_file" ]]; then
-    touch "$last_manifest_file"
+  log "linking $source_path to $transfer_path"
+  if [[ -d "$source_path" ]]; then
+    mkdir -p "$transfer_path"
+    # copy directory contents, avoid nested dir
+    cp -alL "${source_path%/}/." "$transfer_path/"
+  else
+    # file copy
+    cp -alL "$source_path" "$transfer_path"
   fi
-}
-
-get_changed_manifest() {
-  local staged_manifest_file=$1
-  local last_manifest_file=$2
-  local temp_file=$3
-  log "$staged_manifest_file $last_manifest_file $temp_file"
-  # Find files in staged manifest that are not in last manifest
-  comm -13 <(sort "$last_manifest_file") <(sort "$staged_manifest_file") > "$temp_file"
-
-  # Update staged manifest with files that are in last manifest but not in staged manifest
-  comm -23 <(sort "$last_manifest_file") <(sort "$staged_manifest_file") | while IFS= read -r line; do
-    echo "$line delete" >> "$staged_manifest_file"
-  done
-}
-
-transfer_dir() {
-  local source_dir=$1
-  local transfer_name=$2
-  local transfer_dir="${TRANSFER_ROOT%/}/${transfer_name}"
-  local manifest_tmp
-  local staged_manifest_file
-  local last_manifest_file
-
-  [[ -d "$source_dir" ]] || fail "Source directory does not exist: $source_dir"
-
-  ensure_dir "$transfer_dir"
-  manifest_tmp=$(mktemp)
-  staged_manifest_file="${source_dir%/}/.transfer-manifest-staged.tsv"
-  last_manifest_file="${source_dir%/}/.transfer-manifest-last.tsv"
-
-  #write_manifest_from_dir "$source_dir" "$staged_manifest_file"
-
-  # Get changed manifest
-  #get_changed_manifest "$staged_manifest_file" "$last_manifest_file" "$manifest_tmp"
-
-  # Transfer files
-  cp -rl "${source_dir%/}/"* "${transfer_dir%/}/" 
-
-  #--files-from="$manifest_tmp" \
-
-  # Update last manifest file
-  #mv "$staged_manifest_file" "$last_manifest_file"
-
-  log "moved directory ${source_dir} -> ${transfer_dir}"
-}
-
-
-run_oras() {
-  podman run --rm \
-    -v "${HOME}/.docker/config.json:/root/.docker/config.json:Z" \
-    -v "$(pwd):/workspace:Z" \
-    "${ORAS_IMAGE}" "$@"
 }
 
 load_common_config "$COMMON_DIR"
