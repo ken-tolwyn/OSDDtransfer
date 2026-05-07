@@ -14,18 +14,19 @@ require_command reposync
 require_command rsync
 require_command bsdtar
 
-REPOSITORY_LIST_FILE="${REPOSITORY_ROOT}/list"
-REPOSITORY_KEYS_LIST_FILE="${REPOSITORY_KEYS_DIR}/list"
+REPOSITORY_LIST_FILE="$TRUNK_ROOT/$PROJECT_LOCATION/list"
+REPOSITORY_KEYS_LIST_FILE="$TRUNK_ROOT/$PROJECT_LOCATION/keys/list"
+REPOSITORY_ROOT="$TRUNK_ROOT/$PROJECT_LOCATION/"
 
 sync_repos() {
   local version_name=$1
   local repo_file=$2
   shift 2
 
-  ensure_dir "$REPOSITORY_ROOT/$version_name"
+  ensure_dir "$TRUNK_ROOT/$PROJECT_LOCATION/$version_name"
 
   for repo in "$@"; do
-    log "Syncing repository ${repo} into $REPOSITORY_ROOT/$version_name"
+    log "Syncing repository ${repo} into $TRUNK_ROOT/$PROJECT_LOCATION/$version_name"
     if reposync \
       --gpgcheck \
       --newest-only \
@@ -33,10 +34,10 @@ sync_repos() {
       --download-metadata \
       -c "$repo_file" \
       --exclude='*.src,*.nosrc' \
-      -p "$REPOSITORY_ROOT/$version_name" \
+      -p "$TRUNK_ROOT/$PROJECT_LOCATION/$version_name" \
       --remote-time \
       --repoid "$repo" &> log.reposync; then
-      transfer_dir "$REPOSITORY_ROOT/$version_name/$repo" "$version_name/$repo"
+      transfer "$PROJECT_LOCATION" "$version_name/$repo"
     else
       log "Failed to sync repository ${repo}"
     fi
@@ -114,6 +115,7 @@ generate_repo_file() {
   )
 
   mv "${repo_file}.new" "$repo_file"
+
 }
 
 refresh_repo_indexes() {
@@ -214,12 +216,12 @@ update_grype_database() {
     log "Database filename: $db_filename"
 
     # Create database directory if it doesn't exist
-    mkdir -p "$db_dir"
+    mkdir -p "$TRUNK_ROOT/$PROJECT_LOCATION/$db_dir"
 
     # Check if we already have this version
-    if [ -f "$db_dir/$db_filename" ]; then
+    if [ -f "$TRUNK_ROOT/$PROJECT_LOCATION/$db_dir/$db_filename" ]; then
         local existing_checksum
-        existing_checksum=$(sha256sum "$db_dir/$db_filename" | cut -d' ' -f1)
+        existing_checksum=$(sha256sum "$TRUNK_ROOT/$PROJECT_LOCATION/$db_dir/$db_filename" | cut -d' ' -f1)
         if [ "$existing_checksum" = "$db_checksum" ]; then
             log "Database is already up to date"
             return 0
@@ -245,24 +247,24 @@ update_grype_database() {
     log "Checksum verified successfully"
 
     # Move database to shared directory
-    mv "$temp_dir/$db_filename" "$temp_dir/latest.json" "$db_dir/"
-    chmod -R a+rX "$db_dir"
-    
+    mv "$temp_dir/$db_filename" "$temp_dir/latest.json" "$TRUNK_ROOT/$PROJECT_LOCATION/$db_dir/"
+    chmod -R a+rX "$TRUNK_ROOT/$PROJECT_LOCATION/$db_dir"
+    transfer "$PROJECT_LOCATION" "$db_dir"
     log "Grype vulnerability database updated successfully!"
-    transfer_dir "$REPOSITORY_ROOT/$version_name/$repo" "$version_name/$repo"
+    
 }
 
-ensure_dir "$REPOSITORY_ROOT"
-ensure_dir "$REPOSITORY_KEYS_DIR"
+ensure_dir "$TRUNK_ROOT/$PROJECT_LOCATION"
+ensure_dir "$TRUNK_ROOT/$PROJECT_LOCATION/keys"
 
 # Grype vulnerability database
-ensure_dir "$REPOSITORY_ROOT/grype/v6"
+ensure_dir "$TRUNK_ROOT/$PROJECT_LOCATION/grype/v6"
 GRYPE_TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$GRYPE_TEMP_DIR"' EXIT
-#update_grype_database "https://grype.anchore.io/databases/v6" "$REPOSITORY_ROOT/grype" "$GRYPE_TEMP_DIR"
+update_grype_database "https://grype.anchore.io/databases/v6" "grype/v6" "$GRYPE_TEMP_DIR"
 
 #Sync repos
-#sync_repos "OL8" "${SCRIPT_DIR}/oracle-linux-ol8.repo" "${OL8_REPOS[@]}"
+sync_repos "OL8" "${SCRIPT_DIR}/oracle-linux-ol8.repo" "${OL8_REPOS[@]}"
 #sync_repos "OL9" "${SCRIPT_DIR}/oracle-linux-ol9.repo" "${OL9_REPOS[@]}"
 
 mapfile -t repository_key_names < <(copy_key_files "$REPOSITORY_KEYS_DIR" "${REPOSITORY_GPG_KEY_FILES[@]}")
