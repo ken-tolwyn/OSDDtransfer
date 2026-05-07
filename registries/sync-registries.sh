@@ -23,6 +23,7 @@ require_command gzip
 
 REGISTRY_BASE="${LOCAL_REGISTRY_HOST}:${LOCAL_REGISTRY_PORT}/${LOCAL_REGISTRY_NAMESPACE}"
 REGISTRY_STARTED_BY_SCRIPT=false
+REGISTRY_ROOT="$TRUNK_ROOT/$PROJECT_LOCATION"
 
 cleanup() {
   if [[ "$REGISTRY_STARTED_BY_SCRIPT" == "true" ]]; then
@@ -89,32 +90,33 @@ sync_secondary_registry_content() {
   done
 }
 
-ensure_dir "$REGISTRY_STORAGE_DIR/data"
+ensure_dir "$REGISTRY_ROOT/data"
 
 ensure_registry_running
 sleep 5
-while IFS= read -r registry; do
-  while IFS= read -r image; do
-    while IFS= read -r tag; do
-      copy_image \
-        "${registry}/${image}:${tag}" \
-        "${REGISTRY_BASE}/${image}:${tag}"
-    done < <(yq -r ".\"${registry}\".images.\"${image}\"[]" "$REGISTRY_IMAGE_LIST")
-  done < <(yq -r ".\"${registry}\".images | keys | .[]" "$REGISTRY_IMAGE_LIST")
-done < <(yq -r 'keys | .[]' "$REGISTRY_IMAGE_LIST")
+#while IFS= read -r registry; do
+#  while IFS= read -r image; do
+#    while IFS= read -r tag; do
+#      copy_image \
+#        "${registry}/${image}:${tag}" \
+#        "${REGISTRY_BASE}/${image}:${tag}"
+#    done < <(yq -r ".\"${registry}\".images.\"${image}\"[]" "$REGISTRY_IMAGE_LIST")
+#  done < <(yq -r ".\"${registry}\".images | keys | .[]" "$REGISTRY_IMAGE_LIST")
+#done < <(yq -r 'keys | .[]' "$REGISTRY_IMAGE_LIST")
+#
+#if [[ "${SYNC_KUBEADM_IMAGES:-true}" == "true" ]]; then
+#  while IFS= read -r image; do
+#    copy_image "$image" "${REGISTRY_BASE}/${image}"
+#  done < <(kubeadm config images list --kubernetes-version "$KUBERNETES_VERSION")
+#fi
 
-if [[ "${SYNC_KUBEADM_IMAGES:-true}" == "true" ]]; then
-  while IFS= read -r image; do
-    copy_image "$image" "${REGISTRY_BASE}/${image}"
-  done < <(kubeadm config images list --kubernetes-version "$KUBERNETES_VERSION")
-fi
-
-log "Refreshing scanner databases"
-refresh_security_data
+#Disabled as security might need a different transfer requirement
+#log "Refreshing scanner databases"
+#refresh_security_data
 
 if [[ "${SYNC_HELM_CHARTS:-true}" == "true" ]]; then
   log "Syncing Helm charts"
   sync_secondary_registry_content
 fi
 
-transfer_dir "$REGISTRY_STORAGE_DIR" "$REGISTRY_TRANSFER_NAME"
+transfer_dir "$PROJECT_LOCATION" .
