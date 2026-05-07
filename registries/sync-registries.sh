@@ -13,25 +13,11 @@ load_config_file "$SCRIPT_DIR/config.env"
 require_command podman
 require_command skopeo
 require_command yq
-require_command kubeadm
-require_command rsync
 require_command curl
-require_command jq
-require_command buildah
-require_command zgrep
-require_command gzip
 
 REGISTRY_BASE="${LOCAL_REGISTRY_HOST}:${LOCAL_REGISTRY_PORT}/${LOCAL_REGISTRY_NAMESPACE}"
 REGISTRY_STARTED_BY_SCRIPT=false
 REGISTRY_ROOT="$TRUNK_ROOT/$PROJECT_LOCATION"
-
-cleanup() {
-  if [[ "$REGISTRY_STARTED_BY_SCRIPT" == "true" ]]; then
-    podman rm -f "$REGISTRY_CONTAINER_NAME" >/dev/null 2>&1 || true
-  fi
-}
-
-trap cleanup EXIT
 
 ensure_registry_running() {
   if podman container exists "$REGISTRY_CONTAINER_NAME"; then
@@ -50,7 +36,7 @@ ensure_registry_running() {
     --name "$REGISTRY_CONTAINER_NAME" \
     --restart=always \
     -p "${REGISTRY_LISTEN_PORT}:5000" \
-    -v "${REGISTRY_STORAGE_DIR}/data:/var/lib/zot:Z" \
+    -v "${REGISTRY_ROOT}/data:/var/lib/zot:Z" \
     -v "${REGISTRY_CONFIG_FILE}:/etc/zot/config.json:Z" \
     "$REGISTRY_IMAGE" \
     serve /etc/zot/config.json >/dev/null
@@ -118,5 +104,3 @@ if [[ "${SYNC_HELM_CHARTS:-true}" == "true" ]]; then
   log "Syncing Helm charts"
   sync_secondary_registry_content
 fi
-
-transfer_dir "$PROJECT_LOCATION" .

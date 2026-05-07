@@ -50,7 +50,7 @@ push_chart() {
   local push_target="oci://${LOCAL_REGISTRY_HOST}:${LOCAL_REGISTRY_PORT}/${REGISTRY_CHART_NAMESPACE}/${target_path}"
 
   log "Pushing chart $(basename "$package_file") -> ${push_target}"
-  run_helm push "/charts/$(basename "$package_file")" "$push_target"
+  run_helm push --plain-http "/charts/$(basename "$package_file")" "$push_target" 
 }
 
 log "Syncing Helm charts from ${REGISTRY_CHART_LIST}"
@@ -68,4 +68,4 @@ while IFS= read -r chart_spec; do
   latest_package=$(ls -t "${CHART_WORK_DIR}/${name}-"*.tgz 2>/dev/null | head -n 1)
   [[ -n "${latest_package:-}" ]] || fail "No chart package found for ${name}"
   push_chart "$latest_package" "$target_path"
-done < <(yq -o=json '.charts[]' "$REGISTRY_CHART_LIST")
+done < <(yq -o=json -I=0 '.charts[]' "$REGISTRY_CHART_LIST")
