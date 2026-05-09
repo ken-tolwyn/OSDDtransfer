@@ -1,0 +1,59 @@
+workdir = "/trunk"
+directory_mode = "2775"
+
+[transfer]
+root = "/trunk/transfer"
+watched_areas = ["repository", "registry", "maven"]
+link_on_events = ["close_write", "create", "move"]
+
+[layout]
+config_root = "/trunk/config"
+repository_root = "/trunk/repository"
+registry_root = "/trunk/registry"
+maven_root = "/trunk/maven"
+
+[layout.config_inputs]
+repository_repo_files_dir = "/trunk/config/repositories/repo-files"
+repository_iso_dir = "/trunk/config/repositories/iso"
+registry_images_yaml = "/trunk/config/registries/images.yaml"
+registry_charts_yaml = "/trunk/config/registries/charts.yaml"
+maven_reposilite_config = "/trunk/config/maven/reposilite.json"
+
+[services.zot]
+enabled = true
+binary = "/usr/bin/zot"
+listen_host = "0.0.0.0"
+listen_port = 5001
+data_dir = "/trunk/registry/data"
+runtime_config = "/trunk/registry/zot-config.generated.json"
+log_level = "info"
+
+[services.reposilite]
+enabled = true
+java = "/usr/bin/java"
+jar = "/opt/upstreamd/lib/reposilite.jar"
+port = 8081
+local_storage = "/trunk/maven/reposilite"
+config_file = ""
+extra_args = []
+
+[sync.repositories]
+enabled = true
+schedule = "15 02 * * *"
+full_sync = "weekly"
+repo_files_dir = "/trunk/config/repositories/repo-files"
+iso_dir = "/trunk/config/repositories/iso"
+keys_dir = "/trunk/repository/keys"
+existing_logic = "reuse-repositories-sync"
+
+[sync.registries]
+enabled = true
+schedule = "45 02 * * *"
+full_sync = "daily"
+images_yaml = "/trunk/config/registries/images.yaml"
+charts_yaml = "/trunk/config/registries/charts.yaml"
+namespace = "internet"
+
+[metrics]
+netdata_enabled = true
+textfile_dir = "/var/lib/netdata/registry"

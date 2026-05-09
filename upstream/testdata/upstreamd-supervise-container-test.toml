@@ -1,0 +1,41 @@
+workdir = "/trunk"
+directory_mode = "2775"
+
+[transfer]
+watched_areas = ["repository", "registry", "maven"]
+
+[layout.config_inputs]
+repository_repo_files_dir = "/workspace/upstream/testdata/config/repositories/repo-files"
+repository_iso_dir = "/workspace/upstream/testdata/config/repositories/iso"
+registry_images_yaml = "/workspace/upstream/testdata/config/registries/images.yaml"
+registry_charts_yaml = "/workspace/upstream/testdata/config/registries/charts.yaml"
+
+[services.zot]
+enabled = true
+binary = "/usr/bin/sleep"
+args = ["30"]
+listen_host = "0.0.0.0"
+listen_port = 5001
+data_dir = "/trunk/registry/data"
+runtime_config = "/trunk/registry/zot-config.generated.json"
+log_level = "info"
+
+[services.reposilite]
+enabled = true
+binary = "/usr/bin/sleep"
+args = ["30"]
+
+[sync.repositories]
+enabled = true
+schedule = "15 02 * * *"
+full_sync = "weekly"
+repo_files_dir = "/workspace/upstream/testdata/config/repositories/repo-files"
+iso_dir = "/workspace/upstream/testdata/config/repositories/iso"
+
+[sync.registries]
+enabled = true
+schedule = "45 02 * * *"
+full_sync = "daily"
+images_yaml = "/workspace/upstream/testdata/config/registries/images.yaml"
+charts_yaml = "/workspace/upstream/testdata/config/registries/charts.yaml"
+namespace = "internet"

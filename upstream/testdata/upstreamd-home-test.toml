@@ -1,0 +1,35 @@
+workdir = "/home/ken/trunk"
+directory_mode = "2775"
+
+[transfer]
+watched_areas = ["repository", "registry", "maven"]
+
+[layout.config_inputs]
+repository_repo_files_dir = "/home/ken/gitdir/sync/upstream/testdata/config/repositories/repo-files"
+repository_iso_dir = "/home/ken/gitdir/sync/upstream/testdata/config/repositories/iso"
+registry_images_yaml = "/home/ken/gitdir/sync/upstream/testdata/config/registries/images.yaml"
+registry_charts_yaml = "/home/ken/gitdir/sync/upstream/testdata/config/registries/charts.yaml"
+
+[services.zot]
+enabled = true
+binary = "/usr/bin/zot"
+listen_host = "0.0.0.0"
+listen_port = 5001
+data_dir = "/home/ken/trunk/registry/data"
+runtime_config = "/home/ken/trunk/registry/zot-config.generated.json"
+log_level = "info"
+
+[sync.repositories]
+enabled = true
+schedule = "15 02 * * *"
+full_sync = "weekly"
+repo_files_dir = "/home/ken/gitdir/sync/upstream/testdata/config/repositories/repo-files"
+iso_dir = "/home/ken/gitdir/sync/upstream/testdata/config/repositories/iso"
+
+[sync.registries]
+enabled = true
+schedule = "45 02 * * *"
+full_sync = "daily"
+images_yaml = "/home/ken/gitdir/sync/upstream/testdata/config/registries/images.yaml"
+charts_yaml = "/home/ken/gitdir/sync/upstream/testdata/config/registries/charts.yaml"
+namespace = "internet"

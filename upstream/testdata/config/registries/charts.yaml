@@ -1,0 +1,5 @@
+---
+charts:
+  - name: zot
+    repoURL: http://zotregistry.dev/helm-charts
+    targetPath: charts/platform

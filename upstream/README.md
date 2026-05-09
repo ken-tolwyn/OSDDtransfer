@@ -1,6 +1,6 @@
 # Upstream Services
 
-This directory contains the upstream runtime helpers for:
+This directory contains the current upstream runtime helpers and the target daemon configuration model for:
 
 - a user-systemd managed Zot registry
 - a user-systemd managed Reposilite process
@@ -18,6 +18,14 @@ This directory contains the upstream runtime helpers for:
   Runs Reposilite from a local JAR.
 - `watch-transfer-links.sh`
   Watches `/trunk/repository`, `/trunk/registry`, and `/trunk/maven` and mirrors changes into `/trunk/transfer` using hard links.
+- `test-trunk-permissions.sh`
+  Startup probe for directory writability, same-filesystem checks, and hard-link support between staged trees and `/trunk/transfer`.
+- `upstreamd.example.toml`
+  Proposed single-daemon configuration model for the RPM-delivered C++ implementation.
+- `test-upstreamd-in-container.sh`
+  Runs the built `upstreamd` binary inside an Oracle Linux 9 container with a host trunk directory mounted as `/trunk`.
+- `test-watch-in-container.sh`
+  End-to-end watcher integration test using the containerized runtime and a mounted host trunk directory.
 - `systemd/`
   Example user-systemd units for the upstream stack.
 
@@ -28,6 +36,72 @@ This directory contains the upstream runtime helpers for:
 
 Adjust those paths in `config.env` if your installation differs.
 
+## Target Runtime Model
+
+The intended C++ daemon model is simpler than the current shell split:
+
+- one `workdir`, normally `/trunk`
+- the process creates the full folder structure itself
+- Zot and Reposilite are started as managed child processes
+- file changes under the staged source trees are hard-linked into `/trunk/transfer`
+- delete propagation is not handled by the daemon
+- external services remain responsible for downstream cleanup
+
+The `upstreamd.example.toml` file captures that target model.
+
+### Current C++ Test Flow
+
+The active `upstreamd` tests should be run through the container helpers rather than by executing the binary directly on the host.
+
+- startup and config validation:
+  `bash upstream/test-upstreamd-in-container.sh upstream/testdata/upstreamd-container-test.toml`
+- one-shot promotion:
+  `bash upstream/test-upstreamd-in-container.sh upstream/testdata/upstreamd-container-test.toml --promote-once`
+- watcher integration:
+  `bash upstream/test-watch-in-container.sh`
+- child-process supervision:
+  `bash upstream/test-upstreamd-in-container.sh upstream/testdata/upstreamd-supervise-container-test.toml --supervise 2`
+
+### Trunk Layout
+
+The daemon should create and manage:
+
+- `/trunk/repository`
+- `/trunk/registry`
+- `/trunk/maven`
+- `/trunk/transfer`
+- `/trunk/transfer/repository`
+- `/trunk/transfer/registry`
+- `/trunk/transfer/maven`
+- `/trunk/config`
+
+The `/trunk/config` tree is authoritative input and is not mirrored into transfer. It is intended to hold:
+
+- repository `.repo` source files
+- repository ISO files such as NISP input
+- registry image YAML definitions
+- registry chart YAML definitions
+- Reposilite configuration
+
+### Scheduled Sync Work
+
+The target daemon configuration includes cron-style schedules for:
+
+- repository sync
+- registry sync
+
+Each sync area also declares a full sync cadence such as `daily` or `weekly`.
+
+Repository sync should keep the current repository logic:
+
+- reuse the existing `.repo`-file driven sync behavior
+- keep the ISO import path for repository content
+- keep key generation and repository index generation
+
+The target model does not require the file watcher to decide sync timing. The scheduler should trigger full sync cycles independently, while the watcher only promotes changed staged files into transfer.
+
 ## Systemd
 
 Copy the unit files from `upstream/systemd/` into `~/.config/systemd/user/`, replace `/path/to/this/repository` with the real checkout path, then reload and enable them with `systemctl --user`.
+
+Each upstream service now runs `test-trunk-permissions.sh /trunk` as an `ExecStartPre` check. If the work directory cannot be written, if required subdirectories are missing, or if hard links cannot be created between the staged trees and transfer trees, the service start will fail with actionable output.

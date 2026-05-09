@@ -7,6 +7,7 @@ Wants=upstream-zot.service upstream-reposilite.service
 Type=simple
 WorkingDirectory=/path/to/this/repository
 ExecStartPre=/usr/bin/bash /path/to/this/repository/upstream/setup-upstream.sh
+ExecStartPre=/usr/bin/bash /path/to/this/repository/upstream/test-trunk-permissions.sh /trunk
 ExecStart=/usr/bin/bash /path/to/this/repository/upstream/watch-transfer-links.sh
 Restart=always
 RestartSec=2
