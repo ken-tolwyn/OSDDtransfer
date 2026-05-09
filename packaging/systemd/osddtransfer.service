@@ -1,0 +1,11 @@
+[Unit]
+Description=OSDD Transfer Manager (User Service)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/osddtransfer /etc/osddtransfer/osddtransfer.yaml
+
+[Install]
+WantedBy=default.target

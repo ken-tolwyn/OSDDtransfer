@@ -1,0 +1,23 @@
+mode: upstream
+
+maven:
+  enabled: true
+  bind_address: 0.0.0.0
+  port: 8081
+  cache_directory: /var/lib/osddtransfer/staging/maven-cache
+
+images:
+  enabled: true
+  scope_file: /etc/osddtransfer/images.scope
+  zot_storage_directory: /var/lib/osddtransfer/staging/images
+
+rpm:
+  enabled: true
+  repo_definition_directory: /etc/yum.repos.d
+  output_directory: /var/lib/osddtransfer/staging/rpm
+  reposync_binary: reposync
+  download_metadata: true
+
+paths:
+  staging_directory: /var/lib/osddtransfer/staging
+  destination_directory: /var/lib/osddtransfer/outgoing
