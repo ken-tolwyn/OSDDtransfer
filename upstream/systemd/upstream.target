@@ -1,0 +1,7 @@
+[Unit]
+Description=Upstream Repository Services
+Wants=upstream-zot.service upstream-reposilite.service upstream-transfer-watch.service
+After=upstream-zot.service upstream-reposilite.service
+
+[Install]
+WantedBy=default.target

@@ -25,12 +25,12 @@
           "directory_idle_time": 0,
           "path": "/trunk/transfer/repository"
         },
-        "nexus": {
+        "maven": {
           "type": "file",
           "id": 3,
           "rate_limit": 22671680,
           "directory_idle_time": 0,
-          "path": "/trunk/transfer/nexus"
+          "path": "/trunk/transfer/maven"
         },
        "hauler": {
           "type": "file",

@@ -1,0 +1,15 @@
+[Unit]
+Description=Upstream Reposilite Maven Cache
+After=network-online.target upstream-zot.service
+Wants=network-online.target upstream-zot.service
+
+[Service]
+Type=simple
+WorkingDirectory=/path/to/this/repository
+ExecStartPre=/usr/bin/bash /path/to/this/repository/upstream/setup-upstream.sh
+ExecStart=/usr/bin/bash /path/to/this/repository/upstream/start-reposilite.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target
