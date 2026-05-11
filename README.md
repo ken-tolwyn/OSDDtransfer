@@ -63,8 +63,11 @@ Today, `upstreamd` covers:
 - direct invocation of the existing shell sync entrypoints
 - native repository metadata generation
 - native NISP ISO import
+- native Grype DB collection
+- native registry image sync from discovered `*.images`
+- native registry chart sync from discovered `*.charts`
 
-`upstreamd` does not yet implement the full registry sync logic or the full repository mirror logic. Those areas still depend on the existing shell code for actual upstream syncing.
+`upstreamd` still does not yet implement the full OL8/OL9 repository mirror execution itself. That area still depends on the existing shell repository sync for `reposync` parity, even though metadata generation and NISP handling are now native.
 
 ## Transfer Model
 
@@ -132,7 +135,14 @@ Helm charts are defined in `registries/charts.yaml`. They are pushed into the `p
 
 The active chart sync uses Helm through a Podman container image configured in `registries/config.env`. The host does not need a local Helm installation.
 
-At the moment, registry handling is still shell-owned. `upstreamd` can schedule and invoke the registry sync flow and can discover `*.images` and `*.charts` files from the mounted `/config` directory, but it does not yet natively implement image copy, chart sync, scanner DB refresh, or Zot bootstrap logic.
+`upstreamd` now has native registry handling for:
+
+- discovered `*.images` files
+- discovered `*.charts` files
+- native image copy orchestration
+- native chart pull/push orchestration
+
+The shell registry flow still remains useful as a reference implementation and for any helpers not yet ported, but images and charts are no longer shell-only concerns.
 
 ### File Transfer with Hauler
 
@@ -274,7 +284,7 @@ Some tooling is intentionally containerized to keep the scripts portable:
 
 That reduces the number of direct host dependencies and keeps the flows closer to self-contained.
 
-One important current gap: Grype database collection is not yet implemented in `upstreamd`. The existing shell repository flow still downloads and stages Grype data, but the native C++ repository implementation currently covers NISP import, key export, `.repo` rendering, and index generation only.
+Grype database collection is now implemented in the native repository path. The shell repository flow still performs the same job, but it is no longer the only implementation.
 
 ## Running with User Systemd
 

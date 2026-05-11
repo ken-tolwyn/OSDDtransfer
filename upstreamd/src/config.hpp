@@ -13,6 +13,7 @@ struct SyncPolicy {
   std::vector<std::string> command;
   std::string repository_baseurl{"https://repo.k.mis.local"};
   std::vector<std::filesystem::path> repository_gpg_key_files;
+  std::string reposync_binary{"reposync"};
   std::string repository_iso_extractor{"/usr/bin/bsdtar"};
   std::vector<std::string> repository_iso_extractor_args{"-xf"};
   bool grype_enabled{true};

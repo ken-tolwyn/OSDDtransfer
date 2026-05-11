@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <array>
 #include <cerrno>
+#include <cstdio>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <regex>
@@ -170,6 +172,81 @@ std::vector<std::string> copy_key_files(const Config& config) {
   }
 
   return {copied.begin(), copied.end()};
+}
+
+std::vector<std::filesystem::path> discover_repo_files(const Config& config) {
+  return discover_config_files(config.repository_sync.repo_files_dir, ".repo");
+}
+
+std::vector<std::string> parse_repo_ids(const std::filesystem::path& repo_file) {
+  std::ifstream input(repo_file);
+  if (!input) {
+    throw std::runtime_error("unable to open repo file: " + repo_file.string());
+  }
+
+  std::vector<std::string> repo_ids;
+  std::string line;
+  while (std::getline(input, line)) {
+    const auto first = line.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos || line[first] == '#') {
+      continue;
+    }
+    const auto last = line.find_last_not_of(" \t\r\n");
+    const auto trimmed = line.substr(first, last - first + 1);
+    if (trimmed.size() >= 3 && trimmed.front() == '[' && trimmed.back() == ']') {
+      repo_ids.push_back(trimmed.substr(1, trimmed.size() - 2));
+    }
+  }
+  return repo_ids;
+}
+
+std::string version_name_from_repo_file(const std::filesystem::path& repo_file) {
+  auto stem = repo_file.stem().string();
+  const std::string prefix = "oracle-linux-";
+  if (stem.rfind(prefix, 0) == 0) {
+    stem = stem.substr(prefix.size());
+  }
+  if (std::regex_match(stem, std::regex("ol[0-9]+"))) {
+    std::transform(stem.begin(), stem.end(), stem.begin(), [](unsigned char ch) {
+      return static_cast<char>(std::toupper(ch));
+    });
+  }
+  return stem;
+}
+
+void sync_repository_mirrors(const Config& config) {
+  std::size_t total_repoids = 0;
+  for (const auto& repo_file : discover_repo_files(config)) {
+    const auto version = version_name_from_repo_file(repo_file);
+    const auto destination_root = repository_root(config) / version;
+    std::filesystem::create_directories(destination_root);
+
+    for (const auto& repo_id : parse_repo_ids(repo_file)) {
+      ++total_repoids;
+      if (dry_run()) {
+        continue;
+      }
+      run_command({config.repository_sync.reposync_binary,
+                   "--gpgcheck",
+                   "--newest-only",
+                   "--delete",
+                   "--download-metadata",
+                   "-c",
+                   repo_file.string(),
+                   "--exclude=*.src,*.nosrc",
+                   "-p",
+                   destination_root.string(),
+                   "--remote-time",
+                   "--repoid",
+                   repo_id});
+    }
+  }
+
+  if (dry_run()) {
+    touch_marker(repository_root(config) / "reposync-native-dry-run");
+    std::ofstream count_file(repository_root(config) / "reposync-native-count");
+    count_file << total_repoids << '\n';
+  }
 }
 
 std::string format_gpgkey_value(const Config& config,
@@ -529,6 +606,7 @@ void run_repository_native(const Config& config) {
     throw std::runtime_error("failed to prepare repository root: " + error.message());
   }
 
+  sync_repository_mirrors(config);
   auto key_names = copy_key_files(config);
   update_grype_database(config);
   import_nisp_isos(config, key_names);

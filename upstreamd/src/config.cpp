@@ -176,6 +176,8 @@ Config load_config(const std::filesystem::path& path) {
         for (const auto& item : parse_string_array(value)) {
           config.repository_sync.repository_gpg_key_files.push_back(item);
         }
+      } else if (key == "reposync_binary") {
+        config.repository_sync.reposync_binary = unquote(value);
       } else if (key == "iso_extractor") {
         config.repository_sync.repository_iso_extractor = unquote(value);
       } else if (key == "iso_extractor_args") {

@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -58,55 +59,26 @@ void run_command(const std::vector<std::string>& command) {
   }
 }
 
-std::string capture_output(const std::vector<std::string>& command) {
-  if (command.empty()) {
-    throw std::runtime_error("missing capture command");
+std::string trim(std::string value) {
+  const auto first = value.find_first_not_of(" \t\r\n");
+  if (first == std::string::npos) {
+    return {};
   }
-
-  std::string shell_command;
-  for (std::size_t i = 0; i < command.size(); ++i) {
-    if (i > 0) {
-      shell_command += ' ';
-    }
-    shell_command += '\'';
-    for (char ch : command[i]) {
-      if (ch == '\'') {
-        shell_command += "'\\''";
-      } else {
-        shell_command += ch;
-      }
-    }
-    shell_command += '\'';
+  const auto last = value.find_last_not_of(" \t\r\n");
+  value = value.substr(first, last - first + 1);
+  if ((value.size() >= 2 && value.front() == '"' && value.back() == '"') ||
+      (value.size() >= 2 && value.front() == '\'' && value.back() == '\'')) {
+    value = value.substr(1, value.size() - 2);
   }
-
-  FILE* pipe = ::popen(shell_command.c_str(), "r");
-  if (pipe == nullptr) {
-    throw std::runtime_error("failed to start capture command");
-  }
-
-  std::string output;
-  char buffer[4096];
-  while (std::fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-    output += buffer;
-  }
-
-  const int status = ::pclose(pipe);
-  if (status != 0) {
-    throw std::runtime_error("capture command failed");
-  }
-  return output;
+  return value;
 }
 
-std::vector<std::string> split_lines(const std::string& text) {
-  std::vector<std::string> lines;
-  std::istringstream stream(text);
-  std::string line;
-  while (std::getline(stream, line)) {
-    if (!line.empty()) {
-      lines.push_back(line);
-    }
+int indent_of(const std::string& line) {
+  int indent = 0;
+  while (indent < static_cast<int>(line.size()) && line[indent] == ' ') {
+    ++indent;
   }
-  return lines;
+  return indent;
 }
 
 std::string registry_base(const Config& config) {
@@ -119,34 +91,111 @@ std::string registry_image_base(const Config& config) {
 }
 
 std::vector<std::string> discover_image_entries(const Config& config) {
-  return split_lines(capture_output(
-      {config.registry_sync.yq_binary, "-r",
-       "to_entries[] | .key as $registry | .value.images | to_entries[] | .key as "
-       "$image | .value[] | [$registry, $image, .] | @tsv",
-       config.registry_sync.images_yaml.string()}));
+  std::ifstream input(config.registry_sync.images_yaml);
+  if (!input) {
+    throw std::runtime_error("unable to open images file: " +
+                             config.registry_sync.images_yaml.string());
+  }
+
+  std::vector<std::string> entries;
+  std::string current_registry;
+  std::string current_image;
+  std::string line;
+  while (std::getline(input, line)) {
+    const auto trimmed = trim(line);
+    if (trimmed.empty() || trimmed == "---" || trimmed[0] == '#') {
+      continue;
+    }
+    const auto indent = indent_of(line);
+
+    if (indent == 0 && trimmed.back() == ':') {
+      current_registry = trim(trimmed.substr(0, trimmed.size() - 1));
+      current_image.clear();
+      continue;
+    }
+    if (trimmed == "images:") {
+      continue;
+    }
+    if (indent >= 4 && trimmed.back() == ':' && trimmed[0] != '-') {
+      current_image = trim(trimmed.substr(0, trimmed.size() - 1));
+      continue;
+    }
+    if (indent >= 6 && trimmed.rfind("- ", 0) == 0 && !current_registry.empty() &&
+        !current_image.empty()) {
+      const auto tag = trim(trimmed.substr(2));
+      entries.push_back(current_registry + "\t" + current_image + "\t" + tag);
+    }
+  }
+  return entries;
 }
 
-std::vector<std::string> discover_chart_entries(const Config& config) {
-  return split_lines(capture_output({config.registry_sync.yq_binary, "-o=json", "-I=0",
-                                     ".charts[]", config.registry_sync.charts_yaml.string()}));
-}
+struct ChartSpec {
+  std::string name;
+  std::string repo_url;
+  std::string version;
+  std::string target_path{"charts"};
+};
 
-std::string run_yq_stdin(const Config& config,
-                         const std::string& json,
-                         const std::string& expression) {
-  const auto temp = std::filesystem::temp_directory_path() /
-                    ("upstreamd-chart-" + std::to_string(::getpid()) + ".json");
-  {
-    std::ofstream output(temp);
-    output << json;
+std::vector<ChartSpec> discover_chart_entries(const Config& config) {
+  std::ifstream input(config.registry_sync.charts_yaml);
+  if (!input) {
+    throw std::runtime_error("unable to open charts file: " +
+                             config.registry_sync.charts_yaml.string());
   }
-  auto result = capture_output(
-      {config.registry_sync.yq_binary, "-r", expression, temp.string()});
-  std::filesystem::remove(temp);
-  while (!result.empty() && (result.back() == '\n' || result.back() == '\r')) {
-    result.pop_back();
+
+  std::vector<ChartSpec> charts;
+  ChartSpec current;
+  bool in_chart = false;
+  std::string line;
+  while (std::getline(input, line)) {
+    const auto trimmed = trim(line);
+    if (trimmed.empty() || trimmed[0] == '#') {
+      continue;
+    }
+    if (trimmed == "charts:") {
+      continue;
+    }
+    if (trimmed.rfind("- ", 0) == 0) {
+      if (in_chart && !current.name.empty() && !current.repo_url.empty()) {
+        charts.push_back(current);
+      }
+      current = {};
+      current.target_path = "charts";
+      in_chart = true;
+      const auto remainder = trim(trimmed.substr(2));
+      const auto colon = remainder.find(':');
+      if (colon != std::string::npos) {
+        const auto key = trim(remainder.substr(0, colon));
+        const auto value = trim(remainder.substr(colon + 1));
+        if (key == "name") {
+          current.name = value;
+        }
+      }
+      continue;
+    }
+    if (!in_chart) {
+      continue;
+    }
+    const auto colon = trimmed.find(':');
+    if (colon == std::string::npos) {
+      continue;
+    }
+    const auto key = trim(trimmed.substr(0, colon));
+    const auto value = trim(trimmed.substr(colon + 1));
+    if (key == "name") {
+      current.name = value;
+    } else if (key == "repoURL") {
+      current.repo_url = value;
+    } else if (key == "version") {
+      current.version = value;
+    } else if (key == "targetPath") {
+      current.target_path = value;
+    }
   }
-  return result;
+  if (in_chart && !current.name.empty() && !current.repo_url.empty()) {
+    charts.push_back(current);
+  }
+  return charts;
 }
 
 void touch_marker(const std::filesystem::path& path) {
@@ -207,11 +256,11 @@ void run_helm(const Config& config, const std::vector<std::string>& args) {
 void sync_charts(const Config& config) {
   std::filesystem::create_directories(config.workdir / "registry" / "charts");
   std::size_t count = 0;
-  for (const auto& chart_json : discover_chart_entries(config)) {
-    const auto name = run_yq_stdin(config, chart_json, ".name");
-    const auto repo_url = run_yq_stdin(config, chart_json, ".repoURL");
-    const auto version = run_yq_stdin(config, chart_json, ".version // \"\"");
-    const auto target_path = run_yq_stdin(config, chart_json, ".targetPath // \"charts\"");
+  for (const auto& chart : discover_chart_entries(config)) {
+    const auto& name = chart.name;
+    const auto& repo_url = chart.repo_url;
+    const auto& version = chart.version;
+    const auto& target_path = chart.target_path;
     if (name.empty() || repo_url.empty()) {
       continue;
     }

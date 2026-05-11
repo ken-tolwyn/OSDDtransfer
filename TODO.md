@@ -6,12 +6,10 @@
   - `reposync` orchestration
   - OL8/OL9 repo list handling
   - parity with the existing shell output layout
-- Port the registry flow from shell into `upstreamd`:
-  - container image sync from `*.images`
-  - Helm chart sync from `*.charts`
-  - local Zot bootstrap and push behavior
-- Port Grype database collection into `upstreamd`.
-- Define whether scanner database collection belongs in the repository-native path, the registry-native path, or both.
+- Decide whether the remaining registry scanner helpers should also move into `upstreamd`:
+  - Trivy DB refresh
+  - Oracle OVAL refresh
+  - any remaining registry-side security assets
 
 ## Priority 2
 
@@ -19,13 +17,14 @@
 - Add native parsing of discovered `*.repo` source files from mounted `/config`.
 - Decide whether `upstreamd` should merge multiple `*.images` and multiple `*.charts` files or keep a single discovered file per type.
 - Add native Reposilite configuration generation from mounted `/config`.
+- Add native support for multiple discovered `*.images` and `*.charts` files being merged in one run.
 
 ## Priority 3
 
 - Add native preflight checks in `upstreamd` for required repository and registry tools before a scheduled run starts.
 - Add structured per-run logging for native sync execution.
-- Add native support for multiple discovered config fragments under `/config`.
 - Add a clean compatibility plan for phasing out the shell wrappers once native parity exists.
+- Add native registry tests that exercise real tool invocation, not just dry-run discovery markers.
 
 ## Priority 4
 
@@ -43,6 +42,5 @@
 
 ## Validation
 
-- Add a containerized smoke test for registry-native work once that code exists.
 - Add a real-ISO validation fixture for the native NISP importer if a redistributable sample can be created safely.
 - Add tests for multiple discovered `*.repo`, `*.images`, and `*.charts` inputs under `/config`.
