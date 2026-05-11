@@ -2,6 +2,7 @@
 #include "layout.hpp"
 #include "promote.hpp"
 #include "runtime.hpp"
+#include "scheduler.hpp"
 #include "supervisor.hpp"
 #include "validate.hpp"
 
@@ -11,7 +12,7 @@
 int main(int argc, char* argv[]) {
   try {
     if (argc < 2 || argc > 4) {
-      std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds]]\n";
+      std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries>]\n";
       return 2;
     }
 
@@ -35,8 +36,20 @@ int main(int argc, char* argv[]) {
           supervise_seconds = std::stoi(argv[3]);
         }
         upstreamd::supervise_services(config, supervise_seconds);
+      } else if (mode == "--run-scheduler") {
+        int run_seconds = 0;
+        if (argc == 4) {
+          run_seconds = std::stoi(argv[3]);
+        }
+        upstreamd::run_scheduler(config, run_seconds);
+      } else if (mode == "--run-sync") {
+        if (argc != 4) {
+          std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries>]\n";
+          return 2;
+        }
+        upstreamd::run_sync_once(config, argv[3]);
       } else {
-        std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds]]\n";
+        std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries>]\n";
         return 2;
       }
     }

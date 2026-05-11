@@ -68,12 +68,20 @@ void print_summary(const Config& config) {
   std::cout << "repository sync: "
             << (config.repository_sync.enabled ? "enabled" : "disabled")
             << " schedule=" << config.repository_sync.schedule
-            << " full=" << config.repository_sync.full_sync << '\n';
+            << " full=" << config.repository_sync.full_sync;
+  if (!config.repository_sync.command.empty()) {
+    std::cout << " command=" << config.repository_sync.command.front();
+  }
+  std::cout << '\n';
   std::cout << "registry sync: "
             << (config.registry_sync.enabled ? "enabled" : "disabled")
             << " schedule=" << config.registry_sync.schedule
             << " full=" << config.registry_sync.full_sync
-            << " namespace=" << config.registry_sync.registry_namespace << '\n';
+            << " namespace=" << config.registry_sync.registry_namespace;
+  if (!config.registry_sync.command.empty()) {
+    std::cout << " command=" << config.registry_sync.command.front();
+  }
+  std::cout << '\n';
   std::cout << "zot: " << (config.zot.enabled ? "enabled" : "disabled")
             << " data=" << config.zot.data_dir
             << " config=" << config.zot.runtime_config << '\n';

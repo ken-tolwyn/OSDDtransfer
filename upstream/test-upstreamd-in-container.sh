@@ -29,6 +29,8 @@ if [[ ${#ARGS[@]} -gt 0 ]]; then
 fi
 
 exec podman run --rm \
+  -e UPSTREAMD_SYNC_DRY_RUN \
+  -e UPSTREAMD_WATCH_DEBUG \
   -v "${REPO_ROOT}:/workspace:Z" \
   -v "${HOST_TRUNK}:${CONTAINER_TRUNK}:Z" \
   -w /workspace \

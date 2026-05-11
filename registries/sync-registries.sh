@@ -10,14 +10,20 @@ source "$SCRIPT_DIR/../lib/common.sh"
 load_common_config "$SCRIPT_DIR"
 load_config_file "$SCRIPT_DIR/config.env"
 
+REGISTRY_BASE="${LOCAL_REGISTRY_HOST}:${LOCAL_REGISTRY_PORT}/${LOCAL_REGISTRY_NAMESPACE}"
+REGISTRY_STARTED_BY_SCRIPT=false
+REGISTRY_ROOT="$TRUNK_ROOT/$PROJECT_LOCATION"
+
+if [[ "${UPSTREAMD_SYNC_DRY_RUN:-false}" == "true" ]]; then
+  ensure_dir "$REGISTRY_ROOT/data"
+  : > "$TRUNK_ROOT/registry-sync-dry-run"
+  exit 0
+fi
+
 require_command podman
 require_command skopeo
 require_command yq
 require_command curl
-
-REGISTRY_BASE="${LOCAL_REGISTRY_HOST}:${LOCAL_REGISTRY_PORT}/${LOCAL_REGISTRY_NAMESPACE}"
-REGISTRY_STARTED_BY_SCRIPT=false
-REGISTRY_ROOT="$TRUNK_ROOT/$PROJECT_LOCATION"
 
 ensure_registry_running() {
   if podman container exists "$REGISTRY_CONTAINER_NAME"; then

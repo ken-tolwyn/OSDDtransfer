@@ -10,13 +10,19 @@ source "$SCRIPT_DIR/../lib/common.sh"
 load_common_config "$SCRIPT_DIR"
 load_config_file "$SCRIPT_DIR/config.env"
 
-require_command reposync
-require_command rsync
-require_command bsdtar
-
 REPOSITORY_ROOT="$TRUNK_ROOT/$PROJECT_LOCATION"
 REPOSITORY_LIST_FILE="$REPOSITORY_ROOT/list"
 REPOSITORY_KEYS_LIST_FILE="$REPOSITORY_ROOT/keys/list"
+
+if [[ "${UPSTREAMD_SYNC_DRY_RUN:-false}" == "true" ]]; then
+  ensure_dir "$REPOSITORY_ROOT"
+  : > "$TRUNK_ROOT/repository-sync-dry-run"
+  exit 0
+fi
+
+require_command reposync
+require_command rsync
+require_command bsdtar
 
 
 

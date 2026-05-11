@@ -51,6 +51,18 @@ load_common_config() {
   load_config_file "$config_file"
 }
 
+apply_common_overrides() {
+  if [[ -n "${UPSTREAMD_WORKDIR:-}" ]]; then
+    TRUNK_ROOT=$UPSTREAMD_WORKDIR
+  fi
+
+  if [[ -n "${UPSTREAMD_TRANSFER_ROOT:-}" ]]; then
+    TRANSFER_ROOT=$UPSTREAMD_TRANSFER_ROOT
+  elif [[ -n "${UPSTREAMD_WORKDIR:-}" ]]; then
+    TRANSFER_ROOT="${UPSTREAMD_WORKDIR%/}/transfer"
+  fi
+}
+
 ensure_dir() {
   mkdir -p "$1"
 }
@@ -75,3 +87,4 @@ transfer() {
 }
 
 load_common_config "$COMMON_DIR"
+apply_common_overrides

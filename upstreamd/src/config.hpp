@@ -10,6 +10,7 @@ struct SyncPolicy {
   bool enabled{false};
   std::string schedule;
   std::string full_sync;
+  std::vector<std::string> command;
   std::filesystem::path repo_files_dir;
   std::filesystem::path iso_dir;
   std::filesystem::path images_yaml;

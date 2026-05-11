@@ -145,6 +145,8 @@ Config load_config(const std::filesystem::path& path) {
         config.repository_sync.schedule = unquote(value);
       } else if (key == "full_sync") {
         config.repository_sync.full_sync = unquote(value);
+      } else if (key == "command") {
+        config.repository_sync.command = parse_string_array(value);
       } else if (key == "repo_files_dir") {
         config.repository_sync.repo_files_dir = unquote(value);
       } else if (key == "iso_dir") {
@@ -160,6 +162,8 @@ Config load_config(const std::filesystem::path& path) {
         config.registry_sync.schedule = unquote(value);
       } else if (key == "full_sync") {
         config.registry_sync.full_sync = unquote(value);
+      } else if (key == "command") {
+        config.registry_sync.command = parse_string_array(value);
       } else if (key == "images_yaml") {
         config.registry_sync.images_yaml = unquote(value);
       } else if (key == "charts_yaml") {

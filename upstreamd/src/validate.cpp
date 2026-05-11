@@ -122,6 +122,16 @@ void require_cron_like(const std::string& schedule, const std::string& label) {
   }
 }
 
+void require_command(const std::vector<std::string>& command,
+                     const std::string& label) {
+  if (command.empty()) {
+    return;
+  }
+  if (command.front().empty()) {
+    throw std::runtime_error("invalid empty command for " + label);
+  }
+}
+
 }  // namespace
 
 void validate_startup(const Config& config) {
@@ -144,12 +154,14 @@ void validate_startup(const Config& config) {
 
   if (config.repository_sync.enabled) {
     require_cron_like(config.repository_sync.schedule, "repositories");
+    require_command(config.repository_sync.command, "repositories");
     require_directory(config.repository_sync.repo_files_dir);
     require_directory(config.repository_sync.iso_dir);
   }
 
   if (config.registry_sync.enabled) {
     require_cron_like(config.registry_sync.schedule, "registries");
+    require_command(config.registry_sync.command, "registries");
     require_file(config.registry_sync.images_yaml);
     require_file(config.registry_sync.charts_yaml);
   }
