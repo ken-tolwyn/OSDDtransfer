@@ -46,6 +46,26 @@ nexus/config.env.example
 
 This keeps each transfer definition close to its operational logic and avoids a large disconnected config tree.
 
+## Current Status
+
+There are now two parallel implementation layers in this repository:
+
+1. The existing shell-based operational flows under `repositories/`, `registries/`, `hauler/`, and `nexus/`
+2. The newer `upstreamd` C++ runtime model for containerized upstream orchestration
+
+Today, `upstreamd` covers:
+
+- workdir creation
+- transfer promotion by hard link
+- event-driven inotify watching
+- child-process supervision
+- cron-style scheduling
+- direct invocation of the existing shell sync entrypoints
+- native repository metadata generation
+- native NISP ISO import
+
+`upstreamd` does not yet implement the full registry sync logic or the full repository mirror logic. Those areas still depend on the existing shell code for actual upstream syncing.
+
 ## Transfer Model
 
 The intended `/trunk` layout is:
@@ -83,13 +103,17 @@ The older nested pattern `/trunk/transfer/trunk/...` is not intended and is no l
 
 ### Repository Transfer
 
-`repositories/sync-repositories.sh` mirrors the configured OL8 and OL9 repositories into `/trunk/repository`. It also supports a manual NISP import path: an operator places a NISP ISO in `/tmp`, and the script imports it into `/trunk/repository/<version>/` using `bsdtar`, generates `/trunk/repository/<version>.repo`, copies discovered GPG keys into `/trunk/repository/keys/`, and regenerates the top-level `list` files used by the downstream repository service.
+`repositories/sync-repositories.sh` mirrors the configured OL8 and OL9 repositories into `/trunk/repository`. It also supports a manual NISP import path.
+
+For the shell flow, the current assumption is still a manually supplied ISO source path defined by the repository script configuration.
+
+For the newer `upstreamd` native repository path, ISO imports are read from the configured `iso_dir`, which is currently intended to be `/trunk/iso`. The importer reads `MEDIA:` from `nisp.version`, uses that value as the imported folder and `.repo` name, scans extracted content recursively for repository roots by locating `repodata/repomd.xml`, copies discovered GPG keys into `/trunk/repository/keys/`, and preserves the source ISO file.
 
 The repository output now includes:
 
 - `OL8/` and `OL9/` mirrored RPM content
-- `<version>/` extracted NISP content for each imported ISO version
-- `OL8.repo`, `OL9.repo`, and `<version>.repo` repo definition files
+- `<media>/` extracted NISP content for each imported ISO
+- `OL8.repo`, `OL9.repo`, and `<media>.repo` repo definition files
 - `keys/` with published GPG keys
 - `list` and `keys/list` indexes for downstream consumption
 
@@ -107,6 +131,8 @@ The OL9 sync still uses a containerized path because that matches the upstream t
 Helm charts are defined in `registries/charts.yaml`. They are pushed into the `public` namespace and can preserve subpaths using `targetPath`, for example `public/charts/platform` or `public/charts/gitlab`.
 
 The active chart sync uses Helm through a Podman container image configured in `registries/config.env`. The host does not need a local Helm installation.
+
+At the moment, registry handling is still shell-owned. `upstreamd` can schedule and invoke the registry sync flow and can discover `*.images` and `*.charts` files from the mounted `/config` directory, but it does not yet natively implement image copy, chart sync, scanner DB refresh, or Zot bootstrap logic.
 
 ### File Transfer with Hauler
 
@@ -163,7 +189,7 @@ bash nexus/export-nexus-backup.sh
 Use `registries/prefetch-registries.sh` when you want a preflight check before the full registry sync. It expands the current image, kubeadm, and chart inputs into a concrete check list, verifies that the upstream sources can be accessed, and writes a report to `registries/tmp/prefetch/registry-source-check.tsv`.
 It also writes a failed-only report to `registries/tmp/prefetch/registry-source-check-failed.tsv` for quicker operator review.
 
-For the NISP repository path, the upstream acquisition step is manual. Place the ISO in `/tmp` before running `repositories/sync-repositories.sh`. The script will import only versions that do not already have a matching `/trunk/repository/<version>.repo`, then delete the processed ISO from `/tmp`.
+For the current `upstreamd` repository-native path, NISP ISO input is expected in the configured `iso_dir`, currently `/trunk/iso`, and source media is preserved after import.
 
 Use `registries/reconcile-zot-images.sh` when you want to compare the live Zot image content under `public` with the desired image set from `registries/outside.yaml` and optional kubeadm images. It defaults to dry-run and only applies deletions when run with `--apply`.
 
@@ -247,6 +273,8 @@ Some tooling is intentionally containerized to keep the scripts portable:
 - ORAS runs through a Podman container image in the shared helper layer
 
 That reduces the number of direct host dependencies and keeps the flows closer to self-contained.
+
+One important current gap: Grype database collection is not yet implemented in `upstreamd`. The existing shell repository flow still downloads and stages Grype data, but the native C++ repository implementation currently covers NISP import, key export, `.repo` rendering, and index generation only.
 
 ## Running with User Systemd
 

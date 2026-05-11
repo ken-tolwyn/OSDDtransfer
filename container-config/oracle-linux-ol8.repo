@@ -1,0 +1,5 @@
+[ol8_baseos_latest]
+name=Oracle Linux 8 BaseOS
+baseurl=https://example.invalid/ol8/baseos
+enabled=0
+gpgcheck=1

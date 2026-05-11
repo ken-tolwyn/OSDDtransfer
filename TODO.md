@@ -2,62 +2,36 @@
 
 ## Priority 1
 
-- Document the four intended transfer classes explicitly:
-  - repository transfer for OL8 and OL9
-  - container transfer through Zot
-  - misc transfer for non-repo, non-container artifacts
-  - Nexus export / backup restore workflow
-- Standardize all shell scripts on `#!/usr/bin/env bash` plus `set -euo pipefail`.
-- Introduce a shared `lib/common.sh` for logging, command checks, cleanup helpers, and common environment loading.
-- Move all hard-coded paths and endpoints into variables:
-  - `/trunk/...`
-  - `192.168.10.10:5001`
-- Add consistent quoting for variable expansion and paths.
+- Port the actual repository mirror execution from shell into `upstreamd`:
+  - `reposync` orchestration
+  - OL8/OL9 repo list handling
+  - parity with the existing shell output layout
+- Port the registry flow from shell into `upstreamd`:
+  - container image sync from `*.images`
+  - Helm chart sync from `*.charts`
+  - local Zot bootstrap and push behavior
+- Port Grype database collection into `upstreamd`.
+- Define whether scanner database collection belongs in the repository-native path, the registry-native path, or both.
 
 ## Priority 2
 
-- Rename scripts to one format, preferably lowercase kebab-case:
-  - keep active entrypoints on the current lowercase kebab-case convention
-  - `security-trivy.sh`, `security-grype.sh`, `security-clair.sh`, `security-ol8-oval.sh` already follow the desired pattern
-- Replace dated or ad hoc script names with stable functional names.
-- Keep a single top-level orchestrator such as `sync-all.sh` that runs the stages in a documented order.
-- Add a top-level workflow document that maps each script to one of the transfer classes.
-- Stop generating tracked files at runtime where avoidable:
-  - especially temporary download and scan artifacts in transfer directories
-- Split source files from output files:
-  - logs
-  - temporary scanner databases
-  - hauler tarballs
-  - transfer bundles
+- Extend the native repository importer to handle the real NISP ISO layout end to end with production input.
+- Add native parsing of discovered `*.repo` source files from mounted `/config`.
+- Decide whether `upstreamd` should merge multiple `*.images` and multiple `*.charts` files or keep a single discovered file per type.
+- Add native Reposilite configuration generation from mounted `/config`.
 
 ## Priority 3
 
-- Keep configuration close to each transfer area while preserving one shared root `config.env`.
-- Keep Hauler content definition separate from Hauler runtime settings.
-- Keep registry chart definitions separate from registry runtime settings via `registries/charts.yaml`.
-- Keep the registry preflight report useful for operators, including a failed-only view for quick review.
-- Make versions declarative instead of embedding them directly in multiple scripts.
-- Add preflight checks for required tools before each sync stage starts.
-- Add structured logging with per-run log files and consistent timestamps.
-- Add cleanup traps so failed runs do not leave temporary containers or partial outputs behind.
-- Validate the new NISP repository import path end to end with a real ISO, including version detection, key publication, and generated `list` files.
+- Add native preflight checks in `upstreamd` for required repository and registry tools before a scheduled run starts.
+- Add structured per-run logging for native sync execution.
+- Add native support for multiple discovered config fragments under `/config`.
+- Add a clean compatibility plan for phasing out the shell wrappers once native parity exists.
 
 ## Priority 4
 
-- Reorganize the repository so staged source and vendored content are clearer:
-  - `vendor/` for checked-in external repos and binaries
-  - `output/` for generated artifacts
-- Decide whether large binaries and tarballs should remain committed or be fetched on demand.
-- Decide whether `git-repos/dino` belongs in this repository or should be referenced externally.
-- Add a `.gitignore` that excludes transient logs, tmp files, generated databases, and transfer artifacts.
-- Define where the future `misc` transfer should live:
-  - dedicated `misc/` directory
-  - Harbor-backed artifact storage
-  - another artifact packaging mechanism
-- Define the Nexus transfer boundary clearly:
-  - what is exported
-  - what is restored on the receiving side
-  - which steps belong outside this repository
+- Decide whether Hauler remains shell-owned or also gets a native `upstreamd` implementation.
+- Decide whether Nexus remains script-based or moves under the same scheduler/runtime model.
+- Clean out stale test repository artifacts under `/home/ken/trunk` when no longer needed.
 
 ## Documentation
 
@@ -65,10 +39,10 @@
 - Add per-directory READMEs where operational detail is needed.
 - Document required host permissions, mounts, and network assumptions for each sync stage.
 - Document what is authoritative input versus generated output.
+- Keep the README explicit about which functions are native in `upstreamd` and which still rely on shell scripts.
 
 ## Validation
 
-- Add a shell lint target with `shellcheck`.
-- Add formatting with `shfmt`.
-- Add a dry-run or validation mode for image and repo sync manifests where possible.
-- Add a lightweight smoke test for each script entrypoint.
+- Add a containerized smoke test for registry-native work once that code exists.
+- Add a real-ISO validation fixture for the native NISP importer if a redistributable sample can be created safely.
+- Add tests for multiple discovered `*.repo`, `*.images`, and `*.charts` inputs under `/config`.

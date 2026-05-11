@@ -16,33 +16,22 @@ runtime_config = "/trunk/registry/zot-config.generated.json"
 log_level = "info"
 
 [services.reposilite]
-enabled = true
-java = "/usr/bin/java"
-jar = "/opt/upstreamd/lib/reposilite.jar"
-port = 8081
-local_storage = "/trunk/maven/reposilite"
-config_file = ""
-extra_args = []
+enabled = false
+binary = "/usr/bin/java"
+args = []
 
 [sync.repositories]
 enabled = true
 schedule = "15 02 * * *"
 full_sync = "weekly"
-command = ["/usr/bin/bash", "/opt/upstreamd/libexec/sync-repositories.sh"]
-repo_files_dir = "/config"
+baseurl = "https://repo.k.mis.local"
+gpg_key_files = ["/config/RPM-GPG-KEY-test"]
+iso_extractor = "/usr/bin/tar"
+iso_extractor_args = ["-xf"]
 iso_dir = "/trunk/iso"
-keys_dir = "/trunk/repository/keys"
-existing_logic = "reuse-repositories-sync"
 
 [sync.registries]
 enabled = true
 schedule = "45 02 * * *"
 full_sync = "daily"
-command = ["/usr/bin/bash", "/opt/upstreamd/libexec/sync-registries.sh"]
-images_yaml = "/config/sample.images"
-charts_yaml = "/config/sample.charts"
 namespace = "internet"
-
-[metrics]
-netdata_enabled = true
-textfile_dir = "/var/lib/netdata/registry"

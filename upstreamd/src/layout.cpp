@@ -30,6 +30,14 @@ void ensure_directory(const std::filesystem::path& path,
   }
 }
 
+bool is_within_root(const std::filesystem::path& candidate,
+                    const std::filesystem::path& root) {
+  const auto candidate_text = candidate.lexically_normal().string();
+  const auto root_text = root.lexically_normal().string();
+  return candidate_text == root_text ||
+         candidate_text.rfind(root_text + "/", 0) == 0;
+}
+
 }  // namespace
 
 void ensure_layout(const Config& config) {
@@ -37,7 +45,6 @@ void ensure_layout(const Config& config) {
 
   ensure_directory(config.workdir, perms);
   ensure_directory(config.transfer_root, perms);
-  ensure_directory(config.config_root, perms);
 
   for (const auto& area : config.watched_areas) {
     ensure_directory(config.workdir / area, perms);
@@ -46,10 +53,10 @@ void ensure_layout(const Config& config) {
 
   ensure_directory(config.workdir / "registry" / "data", perms);
   ensure_directory(config.workdir / "maven" / "reposilite", perms);
-  ensure_directory(config.config_root / "repositories" / "repo-files", perms);
-  ensure_directory(config.config_root / "repositories" / "iso", perms);
-  ensure_directory(config.config_root / "registries", perms);
-  ensure_directory(config.config_root / "maven", perms);
+  if (!config.repository_sync.iso_dir.empty() &&
+      is_within_root(config.repository_sync.iso_dir, config.workdir)) {
+    ensure_directory(config.repository_sync.iso_dir, perms);
+  }
 }
 
 void print_summary(const Config& config) {

@@ -74,6 +74,25 @@ std::vector<std::string> parse_string_array(const std::string& value) {
   return result;
 }
 
+std::vector<std::filesystem::path> discover_by_extension(
+    const std::filesystem::path& root, const std::string& extension) {
+  std::vector<std::filesystem::path> results;
+  if (!std::filesystem::is_directory(root)) {
+    return results;
+  }
+
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(root)) {
+    if (!entry.is_regular_file()) {
+      continue;
+    }
+    if (entry.path().extension() == extension) {
+      results.push_back(entry.path());
+    }
+  }
+  std::sort(results.begin(), results.end());
+  return results;
+}
+
 }  // namespace
 
 Config load_config(const std::filesystem::path& path) {
@@ -112,6 +131,10 @@ Config load_config(const std::filesystem::path& path) {
     if (current_section.empty()) {
       if (key == "workdir") {
         config.workdir = unquote(value);
+      } else if (key == "transfer_root") {
+        config.transfer_root = unquote(value);
+      } else if (key == "config_root") {
+        config.config_root = unquote(value);
       } else if (key == "directory_mode") {
         config.directory_mode = unquote(value);
       }
@@ -147,6 +170,23 @@ Config load_config(const std::filesystem::path& path) {
         config.repository_sync.full_sync = unquote(value);
       } else if (key == "command") {
         config.repository_sync.command = parse_string_array(value);
+      } else if (key == "baseurl") {
+        config.repository_sync.repository_baseurl = unquote(value);
+      } else if (key == "gpg_key_files") {
+        for (const auto& item : parse_string_array(value)) {
+          config.repository_sync.repository_gpg_key_files.push_back(item);
+        }
+      } else if (key == "iso_extractor") {
+        config.repository_sync.repository_iso_extractor = unquote(value);
+      } else if (key == "iso_extractor_args") {
+        config.repository_sync.repository_iso_extractor_args =
+            parse_string_array(value);
+      } else if (key == "grype_enabled") {
+        config.repository_sync.grype_enabled = parse_bool(value);
+      } else if (key == "grype_db_url") {
+        config.repository_sync.grype_db_url = unquote(value);
+      } else if (key == "grype_db_subdir") {
+        config.repository_sync.grype_db_subdir = unquote(value);
       } else if (key == "repo_files_dir") {
         config.repository_sync.repo_files_dir = unquote(value);
       } else if (key == "iso_dir") {
@@ -170,6 +210,20 @@ Config load_config(const std::filesystem::path& path) {
         config.registry_sync.charts_yaml = unquote(value);
       } else if (key == "namespace") {
         config.registry_sync.registry_namespace = unquote(value);
+      } else if (key == "registry_host") {
+        config.registry_sync.registry_host = unquote(value);
+      } else if (key == "registry_port") {
+        config.registry_sync.registry_port = std::stoi(value);
+      } else if (key == "chart_namespace") {
+        config.registry_sync.registry_chart_namespace = unquote(value);
+      } else if (key == "yq_binary") {
+        config.registry_sync.yq_binary = unquote(value);
+      } else if (key == "skopeo_binary") {
+        config.registry_sync.skopeo_binary = unquote(value);
+      } else if (key == "helm_runner") {
+        config.registry_sync.helm_runner = unquote(value);
+      } else if (key == "helm_container_image") {
+        config.registry_sync.helm_container_image = unquote(value);
       }
       continue;
     }
@@ -207,20 +261,26 @@ Config load_config(const std::filesystem::path& path) {
     }
   }
 
-  config.transfer_root = config.workdir / "transfer";
-  config.config_root = config.workdir / "config";
+  if (config.transfer_root.empty()) {
+    config.transfer_root = config.workdir / "transfer";
+  }
   if (config.inputs.repository_repo_files_dir.empty()) {
-    config.inputs.repository_repo_files_dir =
-        config.config_root / "repositories" / "repo-files";
+    config.inputs.repository_repo_files_dir = config.config_root;
   }
   if (config.inputs.repository_iso_dir.empty()) {
-    config.inputs.repository_iso_dir = config.config_root / "repositories" / "iso";
+    config.inputs.repository_iso_dir = config.config_root;
   }
   if (config.inputs.registry_images_yaml.empty()) {
-    config.inputs.registry_images_yaml = config.config_root / "registries" / "images.yaml";
+    const auto image_files = discover_by_extension(config.config_root, ".images");
+    if (!image_files.empty()) {
+      config.inputs.registry_images_yaml = image_files.front();
+    }
   }
   if (config.inputs.registry_charts_yaml.empty()) {
-    config.inputs.registry_charts_yaml = config.config_root / "registries" / "charts.yaml";
+    const auto chart_files = discover_by_extension(config.config_root, ".charts");
+    if (!chart_files.empty()) {
+      config.inputs.registry_charts_yaml = chart_files.front();
+    }
   }
   if (config.inputs.maven_reposilite_config.empty()) {
     config.inputs.maven_reposilite_config = config.config_root / "maven" / "reposilite.json";
@@ -249,6 +309,11 @@ Config load_config(const std::filesystem::path& path) {
     config.zot.runtime_config = config.workdir / "registry" / "zot-config.generated.json";
   }
   return config;
+}
+
+std::vector<std::filesystem::path> discover_config_files(
+    const std::filesystem::path& root, const std::string& extension) {
+  return discover_by_extension(root, extension);
 }
 
 }  // namespace upstreamd

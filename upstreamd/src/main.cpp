@@ -1,6 +1,8 @@
 #include "config.hpp"
 #include "layout.hpp"
 #include "promote.hpp"
+#include "registry_sync.hpp"
+#include "repository_sync.hpp"
 #include "runtime.hpp"
 #include "scheduler.hpp"
 #include "supervisor.hpp"
@@ -12,7 +14,7 @@
 int main(int argc, char* argv[]) {
   try {
     if (argc < 2 || argc > 4) {
-      std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries>]\n";
+      std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries> | --run-repository-native | --run-registry-native]\n";
       return 2;
     }
 
@@ -44,12 +46,16 @@ int main(int argc, char* argv[]) {
         upstreamd::run_scheduler(config, run_seconds);
       } else if (mode == "--run-sync") {
         if (argc != 4) {
-          std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries>]\n";
+          std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries> | --run-repository-native]\n";
           return 2;
         }
         upstreamd::run_sync_once(config, argv[3]);
+      } else if (mode == "--run-repository-native") {
+        upstreamd::run_repository_native(config);
+      } else if (mode == "--run-registry-native") {
+        upstreamd::run_registry_native(config);
       } else {
-        std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries>]\n";
+        std::cerr << "usage: upstreamd <config.toml> [--promote-once | --watch [seconds] | --supervise [seconds] | --run-scheduler [seconds] | --run-sync <repositories|registries> | --run-repository-native | --run-registry-native]\n";
         return 2;
       }
     }

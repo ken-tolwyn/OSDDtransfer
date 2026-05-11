@@ -23,6 +23,10 @@ log_level = "info"
 enabled = true
 schedule = "15 02 * * *"
 full_sync = "weekly"
+baseurl = "https://repo.k.mis.local"
+gpg_key_files = ["/workspace/upstream/testdata/config/repositories/keys/RPM-GPG-KEY-test"]
+iso_extractor = "/usr/bin/tar"
+iso_extractor_args = ["-xf"]
 repo_files_dir = "/workspace/upstream/testdata/config/repositories/repo-files"
 iso_dir = "/workspace/upstream/testdata/config/repositories/iso"
 

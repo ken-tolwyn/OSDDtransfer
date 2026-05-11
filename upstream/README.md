@@ -22,6 +22,8 @@ This directory contains the current upstream runtime helpers and the target daem
   Startup probe for directory writability, same-filesystem checks, and hard-link support between staged trees and `/trunk/transfer`.
 - `upstreamd.example.toml`
   Proposed single-daemon configuration model for the RPM-delivered C++ implementation.
+- `../container-config/`
+  Example directory to mount into the container as `/config`, including `upstreamd.toml`, sample `*.repo`, `*.images`, and `*.charts` files.
 - `test-upstreamd-in-container.sh`
   Runs the built `upstreamd` binary inside an Oracle Linux 9 container with a host trunk directory mounted as `/trunk`.
 - `test-watch-in-container.sh`
@@ -61,6 +63,26 @@ The active `upstreamd` tests should be run through the container helpers rather 
   `bash upstream/test-watch-in-container.sh`
 - child-process supervision:
   `bash upstream/test-upstreamd-in-container.sh upstream/testdata/upstreamd-supervise-container-test.toml --supervise 2`
+
+### Mounted Config Directory
+
+The preferred container model is now:
+
+- mount the work tree to `/trunk`
+- mount a separate configuration directory to `/config`
+
+The `/config` directory is discovered by file extension:
+
+- `*.repo` for repository source definitions
+- `*.iso` for repository ISO imports such as NISP media
+- `*.images` for registry image definitions
+- `*.charts` for registry chart definitions
+
+An example config directory is provided at [container-config](/home/ken/gitdir/sync/container-config). Its `upstreamd.toml` is intended to be passed to the daemon from inside the container as `/config/upstreamd.toml`.
+
+ISO media can be placed elsewhere with an explicit config entry. The current example uses `iso_dir = "/trunk/iso"` so NISP input can be dropped onto the work volume instead of the read-mostly mounted config directory.
+
+The importer must not delete source ISO files. `/trunk/iso` is treated as a persistent input location, not a scratch area.
 
 ### Trunk Layout
 

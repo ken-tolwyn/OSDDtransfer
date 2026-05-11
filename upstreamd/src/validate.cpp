@@ -25,6 +25,15 @@ void require_file(const std::filesystem::path& path) {
   }
 }
 
+void require_directory_if_present(const std::filesystem::path& path,
+                                  const std::string& label) {
+  if (!std::filesystem::exists(path)) {
+    throw std::runtime_error("missing required directory for " + label + ": " +
+                             path.string());
+  }
+  require_directory(path);
+}
+
 void require_writable_directory(const std::filesystem::path& path) {
   const auto probe = path / (".upstreamd-dir-probe-" + std::to_string(::getpid()));
   std::error_code error;
@@ -137,6 +146,7 @@ void require_command(const std::vector<std::string>& command,
 void validate_startup(const Config& config) {
   require_directory(config.workdir);
   require_writable_directory(config.workdir);
+  require_directory_if_present(config.config_root, "config root");
   require_directory(config.transfer_root);
   require_writable_directory(config.transfer_root);
 
