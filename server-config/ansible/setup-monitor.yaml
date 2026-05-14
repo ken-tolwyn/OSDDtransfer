@@ -95,7 +95,10 @@
     - name: Enable linger for systemd user services
       ansible.builtin.command:
         cmd: "loginctl enable-linger {{ datadiode_user }}"
-      when: datadiode_linger_state.stdout != "yes"
+      when:
+        - datadiode_linger_state.rc == 0
+        - datadiode_linger_state.stdout != "yes"
+      changed_when: true
 
     - name: Look up datadiode user UID
       ansible.builtin.command:
