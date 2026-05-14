@@ -3,15 +3,11 @@
 set -euo pipefail
 
 LOG_FILE="{{ inotify_log_file }}"
-WATCH_PATHS=("$@")
-
-if [[ ${#WATCH_PATHS[@]} -eq 0 ]]; then
-  WATCH_PATHS=(
+WATCH_PATHS=(
 {% for path in inotify_watch_paths %}
-    "{{ path }}"
+  "{{ path }}"
 {% endfor %}
-  )
-fi
+)
 
 mkdir -p "$(dirname "$LOG_FILE")"
 touch "$LOG_FILE"

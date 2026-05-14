@@ -4,7 +4,7 @@
   become: true
   gather_facts: true
   vars:
-    datadiode_user: "{{ ansible_user_id }}"
+    datadiode_user: "{{ ansible_env.SUDO_USER | default(ansible_user_id) }}"
     osddtransfer_checkout: /opt/OSDDtransfer
     trunk_root: /trunk
     transfer_root: /trunk/transfer
@@ -47,6 +47,11 @@
     reposync_every: 1h
 
   tasks:
+    - name: Ensure datadiode user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ datadiode_user }}"
+
     - name: Install required packages
       ansible.builtin.package:
         name: "{{ required_packages }}"
@@ -85,6 +90,7 @@
         cmd: "loginctl show-user {{ datadiode_user }} -p Linger --value"
       register: datadiode_linger_state
       changed_when: false
+      failed_when: datadiode_linger_state.rc != 0 and "No such user" not in datadiode_linger_state.stderr
 
     - name: Enable linger for systemd user services
       ansible.builtin.command:
