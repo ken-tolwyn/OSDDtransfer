@@ -71,6 +71,7 @@
     - name: Set sync user home directory
       ansible.builtin.set_fact:
         datadiode_sync_home: "{{ getent_passwd[datadiode_sync_user][4] }}"
+        datadiode_sync_uid: "{{ getent_passwd[datadiode_sync_user][1] }}"
 
     - name: Install inotify monitor script
       ansible.builtin.copy:
@@ -119,12 +120,7 @@
       ansible.builtin.command:
         cmd: "loginctl enable-linger {{ datadiode_sync_user }}"
       when: not datadiode_linger_state.stat.exists
-
-    - name: Lookup sync user UID
-      ansible.builtin.command:
-        cmd: "id -u {{ datadiode_sync_user }}"
-      register: datadiode_sync_uid
-      changed_when: false
+      changed_when: true
 
     - name: Ensure user systemd directory exists
       ansible.builtin.file:
@@ -155,7 +151,7 @@
         cmd: "systemctl --user daemon-reload"
       become_user: "{{ datadiode_sync_user }}"
       environment:
-        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_sync_uid.stdout }}"
+        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_sync_uid }}"
       changed_when: false
 
     - name: Enable and start user sync timer
@@ -166,4 +162,4 @@
         scope: user
       become_user: "{{ datadiode_sync_user }}"
       environment:
-        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_sync_uid.stdout }}"
+        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_sync_uid }}"
