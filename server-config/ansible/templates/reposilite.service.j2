@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 ExecStartPre=-/usr/bin/podman rm -f {{ reposilite_container_name }}
 ExecStart=/usr/bin/podman run --name {{ reposilite_container_name }} --rm \
-  -p {{ reposilite_port }}:8080 \
+  -p {{ reposilite_port }}:{{ reposilite_internal_port }} \
   -v {{ reposilite_repo_path }}:/var/reposilite:Z \
   {{ reposilite_image }}
 ExecStop=-/usr/bin/podman stop {{ reposilite_container_name }}

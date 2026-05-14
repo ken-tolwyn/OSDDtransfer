@@ -38,6 +38,7 @@
     reposilite_container_name: reposilite
     reposilite_image: docker.io/dzikoysk/reposilite:3.5.22
     reposilite_port: 8080
+    reposilite_internal_port: 8080
     reposilite_repo_path: "{{ trunk_root }}/repository"
 
     reposync_service_name: datadiode-reposync
@@ -67,10 +68,16 @@
         owner: "{{ datadiode_user }}"
         group: "{{ datadiode_user }}"
 
+    - name: Check linger state for user
+      ansible.builtin.command:
+        cmd: "loginctl show-user {{ datadiode_user }} -p Linger --value"
+      register: datadiode_linger_state
+      changed_when: false
+
     - name: Enable linger for systemd user services
       ansible.builtin.command:
         cmd: "loginctl enable-linger {{ datadiode_user }}"
-      changed_when: false
+      when: datadiode_linger_state.stdout != "yes"
 
     - name: Look up datadiode user UID
       ansible.builtin.command:
@@ -115,19 +122,21 @@
 
     - name: Reload user systemd
       become_user: "{{ datadiode_user }}"
-      ansible.builtin.command:
-        cmd: systemctl --user daemon-reload
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+        scope: user
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ datadiode_user_uid.stdout }}"
-      changed_when: false
 
     - name: Enable and start user services
       become_user: "{{ datadiode_user }}"
-      ansible.builtin.command:
-        cmd: "systemctl --user enable --now {{ item }}"
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+        scope: user
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ datadiode_user_uid.stdout }}"
-      changed_when: false
       loop:
         - "{{ registry_service_name }}.service"
         - "{{ reposilite_service_name }}.service"
