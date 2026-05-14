@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars:
-    datadiode_sync_user: "{{ ansible_user_id }}"
+    datadiode_sync_user: "{{ ansible_user }}"
     datadiode_repo_path: "/opt/OSDDtransfer"
     datadiode_root: "/trunk"
     datadiode_transfer_root: "/trunk/transfer"
@@ -63,6 +63,15 @@
         msg: "Repository path {{ datadiode_repo_path }} does not exist on target host."
       when: not datadiode_repo_stat.stat.exists
 
+    - name: Lookup sync user account data
+      ansible.builtin.getent:
+        database: passwd
+        key: "{{ datadiode_sync_user }}"
+
+    - name: Set sync user home directory
+      ansible.builtin.set_fact:
+        datadiode_sync_home: "{{ getent_passwd[datadiode_sync_user][4] }}"
+
     - name: Install inotify monitor script
       ansible.builtin.copy:
         src: "files/datadiode-inotify-monitor.sh"
@@ -119,7 +128,7 @@
 
     - name: Ensure user systemd directory exists
       ansible.builtin.file:
-        path: "/home/{{ datadiode_sync_user }}/.config/systemd/user"
+        path: "{{ datadiode_sync_home }}/.config/systemd/user"
         state: directory
         owner: "{{ datadiode_sync_user }}"
         group: "{{ datadiode_sync_user }}"
@@ -128,7 +137,7 @@
     - name: Install user sync service
       ansible.builtin.template:
         src: "templates/datadiode-sync.service.j2"
-        dest: "/home/{{ datadiode_sync_user }}/.config/systemd/user/{{ datadiode_sync_unit_name }}.service"
+        dest: "{{ datadiode_sync_home }}/.config/systemd/user/{{ datadiode_sync_unit_name }}.service"
         owner: "{{ datadiode_sync_user }}"
         group: "{{ datadiode_sync_user }}"
         mode: "0644"
@@ -136,7 +145,7 @@
     - name: Install user sync timer
       ansible.builtin.template:
         src: "templates/datadiode-sync.timer.j2"
-        dest: "/home/{{ datadiode_sync_user }}/.config/systemd/user/{{ datadiode_sync_unit_name }}.timer"
+        dest: "{{ datadiode_sync_home }}/.config/systemd/user/{{ datadiode_sync_unit_name }}.timer"
         owner: "{{ datadiode_sync_user }}"
         group: "{{ datadiode_sync_user }}"
         mode: "0644"
