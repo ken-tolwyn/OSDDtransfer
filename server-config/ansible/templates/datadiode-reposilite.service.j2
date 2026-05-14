@@ -1,0 +1,15 @@
+[Unit]
+Description=Datadiode Reposilite
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/podman rm -f {{ datadiode_reposilite_container_name }}
+ExecStart=/usr/bin/podman run --name {{ datadiode_reposilite_container_name }} --replace --rm --publish {{ datadiode_reposilite_port }}:8080 --volume {{ datadiode_reposilite_data_dir }}:/app/data/repositories:Z {{ datadiode_reposilite_image }}
+ExecStop=/usr/bin/podman stop -t 10 {{ datadiode_reposilite_container_name }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

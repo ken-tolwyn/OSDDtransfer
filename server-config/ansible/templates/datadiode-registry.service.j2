@@ -1,0 +1,15 @@
+[Unit]
+Description=Datadiode Zot registry
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/podman rm -f {{ datadiode_registry_container_name }}
+ExecStart=/usr/bin/podman run --name {{ datadiode_registry_container_name }} --replace --rm --publish {{ datadiode_registry_port }}:5000 --volume {{ datadiode_registry_data_dir }}:/var/lib/zot:Z --volume {{ datadiode_registry_config_file }}:/etc/zot/config.json:ro,Z {{ datadiode_registry_image }} serve /etc/zot/config.json
+ExecStop=/usr/bin/podman stop -t 10 {{ datadiode_registry_container_name }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

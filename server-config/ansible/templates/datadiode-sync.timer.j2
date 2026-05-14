@@ -1,0 +1,10 @@
+[Unit]
+Description=Run datadiode staging sync on schedule
+
+[Timer]
+OnBootSec={{ datadiode_sync_on_boot_sec }}
+OnUnitActiveSec={{ datadiode_sync_on_unit_active_sec }}
+Unit={{ datadiode_sync_unit_name }}.service
+
+[Install]
+WantedBy=timers.target

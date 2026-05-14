@@ -324,6 +324,31 @@ systemctl --user list-timers
 systemctl --user status datadiode-sync.timer
 ```
 
+## Ansible Host Bootstrap and Monitoring
+
+An Ansible playbook is included to bootstrap and monitor a staging host:
+
+- `server-config/ansible/setup-monitor.yml`
+
+It performs three operational tasks:
+
+1. Creates the required `/trunk` staging and transfer directory structure.
+2. Configures `inotify` monitoring on staging/transfer paths with a systemd service.
+3. Installs and starts:
+   - a Zot registry systemd service (Podman-backed),
+   - a Reposilite systemd service (Podman-backed),
+   - a user-level `datadiode-sync` systemd timer/service for scheduled `sync-all.sh` runs.
+
+Example run:
+
+```bash
+ansible-playbook -i <inventory> server-config/ansible/setup-monitor.yml \
+  -e datadiode_repo_path=/path/to/this/repository \
+  -e datadiode_sync_user=<linux-user>
+```
+
+Tune ports/images/schedule through playbook variables as needed.
+
 ## Current State
 
 The repository is already in a workable state for the main transfer classes, but a few realities are worth keeping in mind:

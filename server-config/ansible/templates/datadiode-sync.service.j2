@@ -1,0 +1,11 @@
+[Unit]
+Description=Datadiode staging sync
+After=default.target
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ datadiode_repo_path }}
+ExecStart=/usr/bin/bash {{ datadiode_repo_path }}/sync-all.sh
+
+[Install]
+WantedBy=default.target

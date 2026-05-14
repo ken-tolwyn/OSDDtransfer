@@ -1,0 +1,152 @@
+---
+- name: Setup and monitor OSDD transfer host
+  hosts: all
+  become: true
+  vars:
+    datadiode_sync_user: "{{ ansible_user_id }}"
+    datadiode_repo_path: "/opt/OSDDtransfer"
+    datadiode_root: "/trunk"
+    datadiode_transfer_root: "/trunk/transfer"
+    datadiode_registry_data_dir: "/trunk/registry/data"
+    datadiode_registry_port: 5001
+    datadiode_registry_container_name: "zot-upstream"
+    datadiode_registry_image: "ghcr.io/project-zot/zot-linux-amd64:latest"
+    datadiode_registry_config_file: "{{ datadiode_repo_path }}/registries/zot_config.json"
+    datadiode_reposilite_container_name: "reposilite"
+    datadiode_reposilite_image: "docker.io/dzikoysk/reposilite:latest"
+    datadiode_reposilite_port: 8080
+    datadiode_reposilite_data_dir: "/trunk/repository"
+    datadiode_inotify_log_dir: "/var/log/datadiode"
+    datadiode_inotify_paths:
+      - "/trunk/repository"
+      - "/trunk/registry"
+      - "/trunk/hauler"
+      - "/trunk/transfer"
+    datadiode_sync_on_boot_sec: "5m"
+    datadiode_sync_on_unit_active_sec: "1h"
+    datadiode_sync_unit_name: "datadiode-sync"
+    datadiode_system_packages:
+      - podman
+      - inotify-tools
+
+  tasks:
+    - name: Install required packages
+      ansible.builtin.package:
+        name: "{{ datadiode_system_packages }}"
+        state: present
+
+    - name: Ensure staging directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "{{ datadiode_root }}"
+        - "{{ datadiode_root }}/registry"
+        - "{{ datadiode_root }}/repository"
+        - "{{ datadiode_root }}/hauler"
+        - "{{ datadiode_root }}/nexus-backup"
+        - "{{ datadiode_transfer_root }}"
+        - "{{ datadiode_transfer_root }}/registry"
+        - "{{ datadiode_transfer_root }}/repository"
+        - "{{ datadiode_transfer_root }}/nexus"
+        - "{{ datadiode_registry_data_dir }}"
+        - "{{ datadiode_inotify_log_dir }}"
+
+    - name: Ensure repository checkout path exists
+      ansible.builtin.stat:
+        path: "{{ datadiode_repo_path }}"
+      register: datadiode_repo_stat
+
+    - name: Fail when repository checkout path is missing
+      ansible.builtin.fail:
+        msg: "Repository path {{ datadiode_repo_path }} does not exist on target host."
+      when: not datadiode_repo_stat.stat.exists
+
+    - name: Install inotify monitor script
+      ansible.builtin.copy:
+        src: "files/datadiode-inotify-monitor.sh"
+        dest: "/usr/local/bin/datadiode-inotify-monitor.sh"
+        mode: "0755"
+
+    - name: Install inotify monitor service
+      ansible.builtin.template:
+        src: "templates/datadiode-inotify-monitor.service.j2"
+        dest: "/etc/systemd/system/datadiode-inotify-monitor.service"
+        mode: "0644"
+
+    - name: Install registry service
+      ansible.builtin.template:
+        src: "templates/datadiode-registry.service.j2"
+        dest: "/etc/systemd/system/datadiode-registry.service"
+        mode: "0644"
+
+    - name: Install reposilite service
+      ansible.builtin.template:
+        src: "templates/datadiode-reposilite.service.j2"
+        dest: "/etc/systemd/system/datadiode-reposilite.service"
+        mode: "0644"
+
+    - name: Reload systemd manager configuration
+      ansible.builtin.systemd_service:
+        daemon_reload: true
+
+    - name: Enable and start host services
+      ansible.builtin.systemd_service:
+        name: "{{ item }}"
+        enabled: true
+        state: started
+      loop:
+        - datadiode-inotify-monitor.service
+        - datadiode-registry.service
+        - datadiode-reposilite.service
+
+    - name: Enable lingering for sync user
+      ansible.builtin.command:
+        cmd: "loginctl enable-linger {{ datadiode_sync_user }}"
+      changed_when: false
+
+    - name: Lookup sync user UID
+      ansible.builtin.command:
+        cmd: "id -u {{ datadiode_sync_user }}"
+      register: datadiode_sync_uid
+      changed_when: false
+
+    - name: Ensure user systemd directory exists
+      ansible.builtin.file:
+        path: "/home/{{ datadiode_sync_user }}/.config/systemd/user"
+        state: directory
+        owner: "{{ datadiode_sync_user }}"
+        group: "{{ datadiode_sync_user }}"
+        mode: "0755"
+
+    - name: Install user sync service
+      ansible.builtin.template:
+        src: "templates/datadiode-sync.service.j2"
+        dest: "/home/{{ datadiode_sync_user }}/.config/systemd/user/{{ datadiode_sync_unit_name }}.service"
+        owner: "{{ datadiode_sync_user }}"
+        group: "{{ datadiode_sync_user }}"
+        mode: "0644"
+
+    - name: Install user sync timer
+      ansible.builtin.template:
+        src: "templates/datadiode-sync.timer.j2"
+        dest: "/home/{{ datadiode_sync_user }}/.config/systemd/user/{{ datadiode_sync_unit_name }}.timer"
+        owner: "{{ datadiode_sync_user }}"
+        group: "{{ datadiode_sync_user }}"
+        mode: "0644"
+
+    - name: Reload user systemd manager
+      ansible.builtin.command:
+        cmd: "systemctl --user daemon-reload"
+      become_user: "{{ datadiode_sync_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_sync_uid.stdout }}"
+      changed_when: false
+
+    - name: Enable and start user sync timer
+      ansible.builtin.command:
+        cmd: "systemctl --user enable --now {{ datadiode_sync_unit_name }}.timer"
+      become_user: "{{ datadiode_sync_user }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_sync_uid.stdout }}"
