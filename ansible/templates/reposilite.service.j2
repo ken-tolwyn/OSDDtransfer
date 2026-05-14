@@ -1,0 +1,14 @@
+[Unit]
+Description=Datadiode Reposilite Maven Cache
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre={{ datadiode_service_root }}/inode-check.sh
+ExecStart={{ datadiode_service_root }}/start-reposilite.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

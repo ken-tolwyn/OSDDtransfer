@@ -1,0 +1,59 @@
+[ol8_baseos_latest]
+name=Oracle Linux 8 BaseOS Latest ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/baseos/latest/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol8_appstream]
+name=Oracle Linux 8 Application Stream ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/appstream/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol8_addons]
+name=Oracle Linux 8 Addons ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/addons/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol8_UEKR7]
+name=Latest Unbreakable Enterprise Kernel Release 7 for Oracle Linux $releasever ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/UEKR7/$basearch/
+gpgcheck=1
+enabled=1
+
+[hashicorp]
+name=Hashicorp Stable - $basearch
+baseurl=https://rpm.releases.hashicorp.com/RHEL/8/$basearch/stable
+gpgcheck=1
+enabled=1
+
+[ol8_developer]
+name=Oracle Linux 8 Developers Packages ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/developer/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol8_developer_EPEL]
+name=Oracle Linux $releasever EPEL ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/developer/EPEL/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol8_codeready_builder]
+name=Oracle Linux 8 CodeReady Builder ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/codeready/builder/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol8_kvm_appstream]
+name=Oracle Linux 8 KVM Application Stream ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL8/kvm/appstream/$basearch/
+gpgcheck=1
+enabled=1
+
+[kubernetes]
+name=Kubernetes
+baseurl=https://pkgs.k8s.io/core:/stable:/v1.29/rpm/
+gpgcheck=1
+enabled=1

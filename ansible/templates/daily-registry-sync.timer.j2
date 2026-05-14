@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Datadiode Registry Sync Daily
+
+[Timer]
+OnCalendar={{ datadiode_registry_sync_on_calendar }}
+Persistent=true
+Unit=datadiode-daily-registry-sync.service
+
+[Install]
+WantedBy=timers.target

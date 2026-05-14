@@ -1,0 +1,27 @@
+---
+- name: Bootstrap host layout and prerequisites
+  ansible.builtin.import_tasks: bootstrap.yml
+
+- name: Deploy runtime configuration and helper scripts
+  ansible.builtin.import_tasks: configure.yml
+
+- name: Validate hard-link and inode setup
+  ansible.builtin.import_tasks: inode.yml
+
+- name: Configure transfer watcher
+  ansible.builtin.import_tasks: watcher.yml
+
+- name: Configure Reposilite
+  ansible.builtin.import_tasks: reposilite.yml
+
+- name: Configure Zot container service
+  ansible.builtin.import_tasks: zot.yml
+
+- name: Configure Verdaccio npm pull-through cache
+  ansible.builtin.import_tasks: verdaccio.yml
+
+- name: Configure sync timers
+  ansible.builtin.import_tasks: timers.yml
+
+- name: Verify Netdata and Cockpit availability
+  ansible.builtin.import_tasks: observability.yml

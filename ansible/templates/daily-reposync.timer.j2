@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Datadiode Repository Sync Daily
+
+[Timer]
+OnCalendar={{ datadiode_reposync_on_calendar }}
+Persistent=true
+Unit=datadiode-daily-reposync.service
+
+[Install]
+WantedBy=timers.target

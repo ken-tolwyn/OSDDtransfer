@@ -1,0 +1,61 @@
+---
+- name: Install required runtime packages
+  ansible.builtin.package:
+    name: "{{ datadiode_required_packages }}"
+    state: present
+
+- name: Ensure privileged trunk directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "{{ datadiode_dir_mode }}"
+  loop:
+    - "{{ datadiode_trunk_root }}"
+    - "{{ datadiode_stage_root }}"
+    - "{{ datadiode_transfer_root }}"
+    - "{{ datadiode_iso_dir }}"
+    - "{{ datadiode_zot_data_dir }}"
+    - "{{ datadiode_reposilite_root }}"
+    - "{{ datadiode_reposilite_storage_dir }}"
+    - "{{ datadiode_verdaccio_storage_dir }}"
+
+- name: Ensure privileged transfer item directories exist
+  ansible.builtin.file:
+    path: "{{ item.0 }}/{{ item.1 }}"
+    state: directory
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "{{ datadiode_dir_mode }}"
+  loop: "{{ [datadiode_stage_root, datadiode_transfer_root] | product(datadiode_transfer_items) | list }}"
+
+- name: Ensure required runtime binaries are present after install
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/bash
+      - -lc
+      - "command -v {{ item }}"
+  changed_when: false
+  loop:
+    - podman
+    - java
+    - rsync
+    - cp
+    - npm
+    - inotifywait
+    - reposync
+    - tar
+    - curl
+    - jq
+    - yq
+    - sha256sum
+    - skopeo
+
+- name: Enable linger for runtime user
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/loginctl
+      - enable-linger
+      - "{{ datadiode_runtime_user }}"
+  changed_when: false

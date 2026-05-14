@@ -1,0 +1,88 @@
+---
+- name: Configure upstream datadiode staging host
+  hosts: all
+  become: false
+  gather_facts: true
+
+  vars:
+    datadiode_repo_root: "{{ playbook_dir | dirname | dirname }}"
+    datadiode_runtime_user: "{{ lookup('env', 'USER') | default(ansible_user_id, true) }}"
+    datadiode_runtime_group: "{{ lookup('env', 'USER') | default(ansible_user_id, true) }}"
+    datadiode_trunk_root: /trunk
+    datadiode_stage_root: /trunk/stage
+    datadiode_transfer_root: /trunk/transfer
+    datadiode_iso_dir: /trunk/iso
+    datadiode_dir_mode: "2775"
+    datadiode_transfer_items:
+      - repository
+      - registry
+      - maven
+
+    datadiode_service_root: "{{ ansible_env.HOME }}/.local/share/datadiode-sync"
+    datadiode_config_root: "{{ ansible_env.HOME }}/.config/datadiode-sync"
+    datadiode_systemd_user_root: "{{ ansible_env.HOME }}/.config/systemd/user"
+    datadiode_systemd_user_env:
+      HOME: "{{ ansible_env.HOME }}"
+      XDG_CONFIG_HOME: "{{ ansible_env.HOME }}/.config"
+      XDG_RUNTIME_DIR: "/run/user/{{ lookup('pipe', 'id -u') }}"
+
+    datadiode_local_registry_port: 5001
+    datadiode_local_registry_namespace: internet
+    datadiode_repository_baseurl: https://repo.k.mis.local
+    datadiode_repository_gpg_key_files:
+      - /etc/pki/rpm-gpg/RPM-GPG-KEY-oracle
+    datadiode_nisp_iso_glob: "NU-NISP*.iso"
+    datadiode_ol8_repos:
+      - ol8_baseos_latest
+      - ol8_appstream
+      - ol8_addons
+      - ol8_UEKR7
+      - hashicorp
+      - ol8_developer
+      - ol8_developer_EPEL
+      - ol8_codeready_builder
+      - ol8_kvm_appstream
+      - kubernetes
+    datadiode_ol9_repos:
+      - ol9_developer_EPEL
+      - ol9_appstream
+      - ol9_addons
+      - ol9_codeready_builder
+      - ol9_UEKR7
+      - ol9_UEKR8
+      - ol9_kvm_utils
+    datadiode_grype_db_url: https://grype.anchore.io/databases/v6
+
+    datadiode_reposilite_java_bin: /usr/bin/java
+    datadiode_reposilite_jar_path: "{{ ansible_env.HOME }}/bin/reposilite.jar"
+    datadiode_reposilite_jar_url: https://maven.reposilite.com/releases/com/reposilite/reposilite/3.5.28/reposilite-3.5.28-all.jar
+    datadiode_reposilite_port: 8081
+    datadiode_reposilite_root: "{{ datadiode_stage_root }}/maven"
+    datadiode_reposilite_storage_dir: "{{ datadiode_stage_root }}/maven"
+    datadiode_reposilite_config_path: "{{ datadiode_stage_root }}/maven/configuration.json"
+
+    datadiode_zot_image: "ghcr.io/project-zot/zot-linux-amd64:latest"
+    datadiode_zot_container_name: zot-upstream
+    datadiode_zot_host: 0.0.0.0
+    datadiode_zot_port: "{{ datadiode_local_registry_port }}"
+    datadiode_zot_data_dir: "{{ datadiode_stage_root }}/registry"
+    datadiode_zot_config_path: "{{ datadiode_config_root }}/zot-config.json"
+    datadiode_helm_container_image: docker.io/alpine/helm:3.20.2
+    datadiode_kubernetes_version: stable-1.29
+
+    datadiode_verdaccio_prefix: "{{ ansible_env.HOME }}/.local/share/verdaccio"
+    datadiode_verdaccio_bin: "{{ datadiode_verdaccio_prefix }}/bin/verdaccio"
+    datadiode_verdaccio_port: 4873
+    datadiode_verdaccio_storage_dir: "{{ datadiode_stage_root }}/maven/verdaccio"
+    datadiode_verdaccio_config_path: "{{ datadiode_config_root }}/verdaccio.yaml"
+
+    datadiode_reposync_on_calendar: "*-*-* 02:15:00"
+    datadiode_registry_sync_on_calendar: "*-*-* 02:45:00"
+    datadiode_full_sync_on_calendar: "*-*-* 03:15:00"
+
+    datadiode_netdata_url: http://127.0.0.1:19999/api/v1/info
+    datadiode_cockpit_url: https://127.0.0.1:9090/login
+
+  tasks:
+    - name: Apply upstream datadiode tasks
+      ansible.builtin.import_tasks: ../tasks/main.yml

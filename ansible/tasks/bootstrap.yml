@@ -1,0 +1,32 @@
+---
+- name: Ensure user runtime roots exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0755"
+  loop:
+    - "{{ datadiode_service_root }}"
+    - "{{ datadiode_config_root }}"
+    - "{{ datadiode_systemd_user_root }}"
+    - "{{ datadiode_reposilite_jar_path | dirname }}"
+
+- name: Download Reposilite jar when missing
+  ansible.builtin.get_url:
+    url: "{{ datadiode_reposilite_jar_url }}"
+    dest: "{{ datadiode_reposilite_jar_path }}"
+    mode: "0644"
+    force: false
+
+- name: Check Reposilite jar is present
+  ansible.builtin.stat:
+    path: "{{ datadiode_reposilite_jar_path }}"
+  register: reposilite_jar_stat
+
+- name: Fail when Reposilite jar is missing
+  ansible.builtin.assert:
+    that:
+      - reposilite_jar_stat.stat.exists
+      - reposilite_jar_stat.stat.isreg
+    fail_msg: "Reposilite JAR not found at {{ datadiode_reposilite_jar_path }}"

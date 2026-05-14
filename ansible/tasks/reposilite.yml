@@ -1,0 +1,17 @@
+---
+- name: Install Reposilite systemd unit
+  ansible.builtin.template:
+    src: ../templates/reposilite.service.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-reposilite.service"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Enable and start Reposilite
+  ansible.builtin.systemd_service:
+    name: datadiode-reposilite.service
+    daemon_reload: true
+    enabled: true
+    state: started
+    scope: user
+  environment: "{{ datadiode_systemd_user_env }}"

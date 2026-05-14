@@ -1,0 +1,11 @@
+[Unit]
+Description=Datadiode Daily Full Transfer Hard-Link Sync
+After=datadiode-daily-reposync.service
+
+[Service]
+Type=oneshot
+ExecStartPre={{ datadiode_service_root }}/inode-check.sh
+ExecStart=/usr/bin/cp -aln -- {{ datadiode_stage_root }}/. {{ datadiode_transfer_root }}/
+
+[Install]
+WantedBy=default.target

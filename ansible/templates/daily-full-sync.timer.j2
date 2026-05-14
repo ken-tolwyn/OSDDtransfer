@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Datadiode Full Transfer Hard-Link Sync Daily
+
+[Timer]
+OnCalendar={{ datadiode_full_sync_on_calendar }}
+Persistent=true
+Unit=datadiode-daily-full-sync.service
+
+[Install]
+WantedBy=timers.target

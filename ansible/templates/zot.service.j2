@@ -1,0 +1,17 @@
+[Unit]
+Description=Datadiode Zot Registry Container
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre={{ datadiode_service_root }}/inode-check.sh
+ExecStartPre=-/usr/bin/podman rm -f {{ datadiode_zot_container_name }}
+ExecStart={{ datadiode_service_root }}/start-zot-container.sh
+ExecStop=/usr/bin/podman stop -t 10 {{ datadiode_zot_container_name }}
+ExecStopPost=-/usr/bin/podman rm -f {{ datadiode_zot_container_name }}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

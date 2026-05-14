@@ -1,0 +1,12 @@
+[Unit]
+Description=Datadiode Daily Registry Sync
+After=network-online.target datadiode-zot.service datadiode-reposilite.service
+Wants=network-online.target datadiode-zot.service datadiode-reposilite.service
+
+[Service]
+Type=oneshot
+ExecStartPre={{ datadiode_service_root }}/inode-check.sh
+ExecStart={{ datadiode_service_root }}/run-registry-sync.sh
+
+[Install]
+WantedBy=default.target
