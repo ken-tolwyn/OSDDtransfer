@@ -357,6 +357,7 @@ Important variables:
 - `inotify_watch_paths`: directories monitored by the inotify service
 - `reposilite_image` and `reposilite_port`: Reposilite container runtime settings
   - default image is pinned to `docker.io/dzikoysk/reposilite:3.5.22` in the playbook; change it explicitly if you need a different tested version
+  - if you change versions, validate against the Reposilite release notes and run a playbook dry run plus service start check on your target host
 
 ## Current State
 
