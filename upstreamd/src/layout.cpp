@@ -65,8 +65,8 @@ void print_summary(const Config& config) {
   std::cout << "config root: " << config.config_root << '\n';
   std::cout << "repo input dir: " << config.repository_sync.repo_files_dir << '\n';
   std::cout << "repo iso dir: " << config.repository_sync.iso_dir << '\n';
-  std::cout << "registry images yaml: " << config.registry_sync.images_yaml << '\n';
-  std::cout << "registry charts yaml: " << config.registry_sync.charts_yaml << '\n';
+  std::cout << "registry images source: " << config.registry_sync.images_yaml << '\n';
+  std::cout << "registry charts source: " << config.registry_sync.charts_yaml << '\n';
   std::cout << "watched areas:";
   for (const auto& area : config.watched_areas) {
     std::cout << ' ' << area;

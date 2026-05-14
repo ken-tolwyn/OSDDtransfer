@@ -19,15 +19,20 @@ struct SyncPolicy {
   bool grype_enabled{true};
   std::string grype_db_url{"https://grype.anchore.io/databases/v6"};
   std::string grype_db_subdir{"grype/v6"};
-  std::string registry_chart_namespace{"internet"};
   std::string registry_host{"localhost"};
   int registry_port{5001};
-  std::string yq_binary{"yq"};
   std::string skopeo_binary{"skopeo"};
+  std::string helm_binary{"helm"};
   std::string curl_binary{"curl"};
   std::string sha256sum_binary{"sha256sum"};
-  std::string helm_runner{"podman"};
-  std::string helm_container_image{"docker.io/alpine/helm:3.20.2"};
+  std::string buildah_binary{"buildah"};
+  std::string trivy_db_source{"ghcr.io/aquasecurity"};
+  std::vector<std::string> trivy_images{"trivy-db:2", "trivy-java-db:1"};
+  std::string ol8_oval_url{
+      "https://linux.oracle.com/security/oval/com.oracle.elsa-ol8.xml.bz2"};
+  std::string ol8_oval_db_file{"com.oracle.elsa-ol8.xml.bz2"};
+  std::string ol8_oval_image_ref{"oracle-oval:ol8"};
+  std::string buildah_base_image{"cgr.dev/chainguard/openscap:latest-dev"};
   std::filesystem::path repo_files_dir;
   std::filesystem::path iso_dir;
   std::filesystem::path images_yaml;

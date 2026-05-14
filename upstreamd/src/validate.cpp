@@ -19,10 +19,30 @@ void require_directory(const std::filesystem::path& path) {
   }
 }
 
-void require_file(const std::filesystem::path& path) {
-  if (!std::filesystem::is_regular_file(path)) {
-    throw std::runtime_error("missing required file: " + path.string());
+void require_config_source(const std::filesystem::path& path,
+                           const std::string& extension,
+                           const std::string& label) {
+  if (std::filesystem::is_regular_file(path)) {
+    if (path.extension() != extension) {
+      throw std::runtime_error("invalid " + label + " file extension: " +
+                               path.string());
+    }
+    return;
   }
+
+  if (!std::filesystem::is_directory(path)) {
+    throw std::runtime_error("missing required " + label + " source: " +
+                             path.string());
+  }
+
+  for (const auto& entry : std::filesystem::recursive_directory_iterator(path)) {
+    if (entry.is_regular_file() && entry.path().extension() == extension) {
+      return;
+    }
+  }
+
+  throw std::runtime_error("missing required " + label + " files with extension " +
+                           extension + " under " + path.string());
 }
 
 void require_directory_if_present(const std::filesystem::path& path,
@@ -172,8 +192,10 @@ void validate_startup(const Config& config) {
   if (config.registry_sync.enabled) {
     require_cron_like(config.registry_sync.schedule, "registries");
     require_command(config.registry_sync.command, "registries");
-    require_file(config.registry_sync.images_yaml);
-    require_file(config.registry_sync.charts_yaml);
+    require_config_source(config.registry_sync.images_yaml, ".images",
+                          "registry image config");
+    require_config_source(config.registry_sync.charts_yaml, ".charts",
+                          "registry chart config");
   }
 }
 

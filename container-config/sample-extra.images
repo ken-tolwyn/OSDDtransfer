@@ -1,0 +1,4 @@
+quay.io:
+  images:
+    jetstack/cert-manager-controller:
+      - "v1.17.1"

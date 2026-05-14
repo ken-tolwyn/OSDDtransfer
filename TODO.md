@@ -2,22 +2,22 @@
 
 ## Priority 1
 
-- Port the actual repository mirror execution from shell into `upstreamd`:
-  - `reposync` orchestration
-  - OL8/OL9 repo list handling
-  - parity with the existing shell output layout
-- Decide whether the remaining registry scanner helpers should also move into `upstreamd`:
-  - Trivy DB refresh
-  - Oracle OVAL refresh
-  - any remaining registry-side security assets
+- Add non-dry-run integration coverage for the native registry path:
+  - image copy execution
+  - chart pull and push execution
+  - Trivy DB collection execution
+  - Oracle OVAL collection execution
+- Validate native repository mirror execution against the existing shell output:
+  - `reposync` parity
+  - OL8/OL9 output layout parity
+  - key and repo file parity
 
 ## Priority 2
 
 - Extend the native repository importer to handle the real NISP ISO layout end to end with production input.
 - Add native parsing of discovered `*.repo` source files from mounted `/config`.
-- Decide whether `upstreamd` should merge multiple `*.images` and multiple `*.charts` files or keep a single discovered file per type.
 - Add native Reposilite configuration generation from mounted `/config`.
-- Add native support for multiple discovered `*.images` and `*.charts` files being merged in one run.
+- Add clearer native handling for registry-side security assets that should be excluded from normal image reconciliation logic.
 
 ## Priority 3
 
@@ -43,4 +43,4 @@
 ## Validation
 
 - Add a real-ISO validation fixture for the native NISP importer if a redistributable sample can be created safely.
-- Add tests for multiple discovered `*.repo`, `*.images`, and `*.charts` inputs under `/config`.
+- Add tests for multiple discovered `*.repo` inputs under `/config`.

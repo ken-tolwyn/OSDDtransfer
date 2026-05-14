@@ -81,6 +81,17 @@ int indent_of(const std::string& line) {
   return indent;
 }
 
+std::vector<std::filesystem::path> config_files_for_extension(
+    const std::filesystem::path& source, const std::string& extension) {
+  if (std::filesystem::is_directory(source)) {
+    return discover_config_files(source, extension);
+  }
+  if (std::filesystem::is_regular_file(source)) {
+    return {source};
+  }
+  return {};
+}
+
 std::string registry_base(const Config& config) {
   return config.registry_sync.registry_host + ":" +
          std::to_string(config.registry_sync.registry_port);
@@ -91,39 +102,41 @@ std::string registry_image_base(const Config& config) {
 }
 
 std::vector<std::string> discover_image_entries(const Config& config) {
-  std::ifstream input(config.registry_sync.images_yaml);
-  if (!input) {
-    throw std::runtime_error("unable to open images file: " +
-                             config.registry_sync.images_yaml.string());
-  }
-
   std::vector<std::string> entries;
-  std::string current_registry;
-  std::string current_image;
-  std::string line;
-  while (std::getline(input, line)) {
-    const auto trimmed = trim(line);
-    if (trimmed.empty() || trimmed == "---" || trimmed[0] == '#') {
-      continue;
+  for (const auto& file : config_files_for_extension(config.registry_sync.images_yaml,
+                                                     ".images")) {
+    std::ifstream input(file);
+    if (!input) {
+      throw std::runtime_error("unable to open images file: " + file.string());
     }
-    const auto indent = indent_of(line);
 
-    if (indent == 0 && trimmed.back() == ':') {
-      current_registry = trim(trimmed.substr(0, trimmed.size() - 1));
-      current_image.clear();
-      continue;
-    }
-    if (trimmed == "images:") {
-      continue;
-    }
-    if (indent >= 4 && trimmed.back() == ':' && trimmed[0] != '-') {
-      current_image = trim(trimmed.substr(0, trimmed.size() - 1));
-      continue;
-    }
-    if (indent >= 6 && trimmed.rfind("- ", 0) == 0 && !current_registry.empty() &&
-        !current_image.empty()) {
-      const auto tag = trim(trimmed.substr(2));
-      entries.push_back(current_registry + "\t" + current_image + "\t" + tag);
+    std::string current_registry;
+    std::string current_image;
+    std::string line;
+    while (std::getline(input, line)) {
+      const auto trimmed = trim(line);
+      if (trimmed.empty() || trimmed == "---" || trimmed[0] == '#') {
+        continue;
+      }
+      const auto indent = indent_of(line);
+
+      if (indent == 0 && trimmed.back() == ':') {
+        current_registry = trim(trimmed.substr(0, trimmed.size() - 1));
+        current_image.clear();
+        continue;
+      }
+      if (trimmed == "images:") {
+        continue;
+      }
+      if (indent >= 4 && trimmed.back() == ':' && trimmed[0] != '-') {
+        current_image = trim(trimmed.substr(0, trimmed.size() - 1));
+        continue;
+      }
+      if (indent >= 6 && trimmed.rfind("- ", 0) == 0 && !current_registry.empty() &&
+          !current_image.empty()) {
+        const auto tag = trim(trimmed.substr(2));
+        entries.push_back(current_registry + "\t" + current_image + "\t" + tag);
+      }
     }
   }
   return entries;
@@ -137,63 +150,65 @@ struct ChartSpec {
 };
 
 std::vector<ChartSpec> discover_chart_entries(const Config& config) {
-  std::ifstream input(config.registry_sync.charts_yaml);
-  if (!input) {
-    throw std::runtime_error("unable to open charts file: " +
-                             config.registry_sync.charts_yaml.string());
-  }
-
   std::vector<ChartSpec> charts;
-  ChartSpec current;
-  bool in_chart = false;
-  std::string line;
-  while (std::getline(input, line)) {
-    const auto trimmed = trim(line);
-    if (trimmed.empty() || trimmed[0] == '#') {
-      continue;
+  for (const auto& file : config_files_for_extension(config.registry_sync.charts_yaml,
+                                                     ".charts")) {
+    std::ifstream input(file);
+    if (!input) {
+      throw std::runtime_error("unable to open charts file: " + file.string());
     }
-    if (trimmed == "charts:") {
-      continue;
-    }
-    if (trimmed.rfind("- ", 0) == 0) {
-      if (in_chart && !current.name.empty() && !current.repo_url.empty()) {
-        charts.push_back(current);
+
+    ChartSpec current;
+    bool in_chart = false;
+    std::string line;
+    while (std::getline(input, line)) {
+      const auto trimmed = trim(line);
+      if (trimmed.empty() || trimmed[0] == '#') {
+        continue;
       }
-      current = {};
-      current.target_path = "charts";
-      in_chart = true;
-      const auto remainder = trim(trimmed.substr(2));
-      const auto colon = remainder.find(':');
-      if (colon != std::string::npos) {
-        const auto key = trim(remainder.substr(0, colon));
-        const auto value = trim(remainder.substr(colon + 1));
-        if (key == "name") {
-          current.name = value;
+      if (trimmed == "charts:") {
+        continue;
+      }
+      if (trimmed.rfind("- ", 0) == 0) {
+        if (in_chart && !current.name.empty() && !current.repo_url.empty()) {
+          charts.push_back(current);
         }
+        current = {};
+        current.target_path = "charts";
+        in_chart = true;
+        const auto remainder = trim(trimmed.substr(2));
+        const auto colon = remainder.find(':');
+        if (colon != std::string::npos) {
+          const auto key = trim(remainder.substr(0, colon));
+          const auto value = trim(remainder.substr(colon + 1));
+          if (key == "name") {
+            current.name = value;
+          }
+        }
+        continue;
       }
-      continue;
+      if (!in_chart) {
+        continue;
+      }
+      const auto colon = trimmed.find(':');
+      if (colon == std::string::npos) {
+        continue;
+      }
+      const auto key = trim(trimmed.substr(0, colon));
+      const auto value = trim(trimmed.substr(colon + 1));
+      if (key == "name") {
+        current.name = value;
+      } else if (key == "repoURL") {
+        current.repo_url = value;
+      } else if (key == "version") {
+        current.version = value;
+      } else if (key == "targetPath") {
+        current.target_path = value;
+      }
     }
-    if (!in_chart) {
-      continue;
+    if (in_chart && !current.name.empty() && !current.repo_url.empty()) {
+        charts.push_back(current);
     }
-    const auto colon = trimmed.find(':');
-    if (colon == std::string::npos) {
-      continue;
-    }
-    const auto key = trim(trimmed.substr(0, colon));
-    const auto value = trim(trimmed.substr(colon + 1));
-    if (key == "name") {
-      current.name = value;
-    } else if (key == "repoURL") {
-      current.repo_url = value;
-    } else if (key == "version") {
-      current.version = value;
-    } else if (key == "targetPath") {
-      current.target_path = value;
-    }
-  }
-  if (in_chart && !current.name.empty() && !current.repo_url.empty()) {
-    charts.push_back(current);
   }
   return charts;
 }
@@ -239,22 +254,32 @@ void sync_images(const Config& config) {
   }
 }
 
+void sync_trivy_databases(const Config& config) {
+  std::size_t count = 0;
+  for (const auto& image : config.registry_sync.trivy_images) {
+    ++count;
+    if (dry_run()) {
+      continue;
+    }
+    copy_image(config, config.registry_sync.trivy_db_source + "/" + image,
+               registry_image_base(config) + "/" + image);
+  }
+  if (dry_run()) {
+    touch_marker(config.workdir / "registry-trivy-native-dry-run");
+    std::ofstream count_file(config.workdir / "registry-trivy-native-count");
+    count_file << count << '\n';
+  }
+}
+
 void run_helm(const Config& config, const std::vector<std::string>& args) {
-  std::vector<std::string> command{config.registry_sync.helm_runner,
-                                   "run",
-                                   "--rm",
-                                   "-v",
-                                   (config.workdir / "registry" / "charts").string() +
-                                       ":/charts:Z",
-                                   "-w",
-                                   "/charts",
-                                   config.registry_sync.helm_container_image};
+  std::vector<std::string> command{config.registry_sync.helm_binary};
   command.insert(command.end(), args.begin(), args.end());
   run_command(command);
 }
 
 void sync_charts(const Config& config) {
-  std::filesystem::create_directories(config.workdir / "registry" / "charts");
+  const auto package = config.workdir / "registry" / "charts";
+  std::filesystem::create_directories(package);
   std::size_t count = 0;
   for (const auto& chart : discover_chart_entries(config)) {
     const auto& name = chart.name;
@@ -273,17 +298,16 @@ void sync_charts(const Config& config) {
       if (!version.empty()) {
         pull.insert(pull.end(), {"--version", version});
       }
-      pull.insert(pull.end(), {"--destination", "/charts"});
+      pull.insert(pull.end(), {"--destination", package.string()});
       run_helm(config, pull);
     } else {
       std::vector<std::string> pull{"pull", name, "--repo", repo_url};
       if (!version.empty()) {
         pull.insert(pull.end(), {"--version", version});
       }
-      pull.insert(pull.end(), {"--destination", "/charts"});
+      pull.insert(pull.end(), {"--destination", package.string()});
       run_helm(config, pull);
     }
-    const auto package = config.workdir / "registry" / "charts";
     std::string package_name;
     for (const auto& entry : std::filesystem::directory_iterator(package)) {
       if (entry.is_regular_file() &&
@@ -297,9 +321,9 @@ void sync_charts(const Config& config) {
     }
     run_helm(config, {"push",
                       "--plain-http",
-                      "/charts/" + package_name,
+                      (package / package_name).string(),
                       "oci://" + registry_base(config) + "/" +
-                          config.registry_sync.registry_chart_namespace + "/" +
+                          config.registry_sync.registry_namespace + "/" +
                           target_path});
   }
   if (dry_run()) {
@@ -309,9 +333,37 @@ void sync_charts(const Config& config) {
   }
 }
 
+void sync_ol8_oval(const Config& config) {
+  if (dry_run()) {
+    touch_marker(config.workdir / "registry-oval-native-dry-run");
+    std::ofstream count_file(config.workdir / "registry-oval-native-count");
+    count_file << "1\n";
+    return;
+  }
+
+  const auto scan_dir = config.workdir / "registry" / "scan";
+  std::filesystem::create_directories(scan_dir);
+  const auto oval_file = scan_dir / config.registry_sync.ol8_oval_db_file;
+  run_command({config.registry_sync.curl_binary, "--fail", "-Lo", oval_file.string(),
+               config.registry_sync.ol8_oval_url});
+  const auto container_name = "upstreamd-oval";
+  run_command({config.registry_sync.buildah_binary, "from",
+               config.registry_sync.buildah_base_image});
+  run_command({config.registry_sync.buildah_binary, "config", "--workingdir", "/oval/",
+               container_name});
+  run_command({config.registry_sync.buildah_binary, "copy", container_name,
+               oval_file.string(), "/oval/"});
+  run_command({config.registry_sync.buildah_binary, "commit", container_name,
+               registry_image_base(config) + "/" + config.registry_sync.ol8_oval_image_ref});
+  run_command({config.registry_sync.buildah_binary, "push", "--tls-verify=false",
+               registry_image_base(config) + "/" + config.registry_sync.ol8_oval_image_ref});
+}
+
 }  // namespace
 
 void run_registry_native(const Config& config) {
+  sync_trivy_databases(config);
+  sync_ol8_oval(config);
   sync_images(config);
   sync_charts(config);
   promote_once(config);

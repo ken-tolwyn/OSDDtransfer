@@ -9,9 +9,9 @@ Files are discovered by extension:
 - `*.iso`
   Repository ISO input files such as NISP media.
 - `*.images`
-  Registry image definition file.
+  Registry image definition files. Multiple files are merged in one run.
 - `*.charts`
-  Registry chart definition file.
+  Registry chart definition files. Multiple files are merged in one run.
 
 The runtime settings for the daemon live in `upstreamd.toml`.
 

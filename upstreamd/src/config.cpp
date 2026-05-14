@@ -216,16 +216,26 @@ Config load_config(const std::filesystem::path& path) {
         config.registry_sync.registry_host = unquote(value);
       } else if (key == "registry_port") {
         config.registry_sync.registry_port = std::stoi(value);
-      } else if (key == "chart_namespace") {
-        config.registry_sync.registry_chart_namespace = unquote(value);
-      } else if (key == "yq_binary") {
-        config.registry_sync.yq_binary = unquote(value);
       } else if (key == "skopeo_binary") {
         config.registry_sync.skopeo_binary = unquote(value);
-      } else if (key == "helm_runner") {
-        config.registry_sync.helm_runner = unquote(value);
-      } else if (key == "helm_container_image") {
-        config.registry_sync.helm_container_image = unquote(value);
+      } else if (key == "helm_binary") {
+        config.registry_sync.helm_binary = unquote(value);
+      } else if (key == "curl_binary") {
+        config.registry_sync.curl_binary = unquote(value);
+      } else if (key == "buildah_binary") {
+        config.registry_sync.buildah_binary = unquote(value);
+      } else if (key == "trivy_db_source") {
+        config.registry_sync.trivy_db_source = unquote(value);
+      } else if (key == "trivy_images") {
+        config.registry_sync.trivy_images = parse_string_array(value);
+      } else if (key == "ol8_oval_url") {
+        config.registry_sync.ol8_oval_url = unquote(value);
+      } else if (key == "ol8_oval_db_file") {
+        config.registry_sync.ol8_oval_db_file = unquote(value);
+      } else if (key == "ol8_oval_image_ref") {
+        config.registry_sync.ol8_oval_image_ref = unquote(value);
+      } else if (key == "buildah_base_image") {
+        config.registry_sync.buildah_base_image = unquote(value);
       }
       continue;
     }
@@ -273,16 +283,10 @@ Config load_config(const std::filesystem::path& path) {
     config.inputs.repository_iso_dir = config.config_root;
   }
   if (config.inputs.registry_images_yaml.empty()) {
-    const auto image_files = discover_by_extension(config.config_root, ".images");
-    if (!image_files.empty()) {
-      config.inputs.registry_images_yaml = image_files.front();
-    }
+    config.inputs.registry_images_yaml = config.config_root;
   }
   if (config.inputs.registry_charts_yaml.empty()) {
-    const auto chart_files = discover_by_extension(config.config_root, ".charts");
-    if (!chart_files.empty()) {
-      config.inputs.registry_charts_yaml = chart_files.front();
-    }
+    config.inputs.registry_charts_yaml = config.config_root;
   }
   if (config.inputs.maven_reposilite_config.empty()) {
     config.inputs.maven_reposilite_config = config.config_root / "maven" / "reposilite.json";

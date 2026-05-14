@@ -1,0 +1,5 @@
+charts:
+  - name: cert-manager
+    repoURL: https://charts.jetstack.io
+    version: v1.17.1
+    targetPath: charts/cert-manager

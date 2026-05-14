@@ -66,8 +66,9 @@ Today, `upstreamd` covers:
 - native Grype DB collection
 - native registry image sync from discovered `*.images`
 - native registry chart sync from discovered `*.charts`
+- native registry security asset collection for Trivy DB content and OL8 OVAL content
 
-`upstreamd` still does not yet implement the full OL8/OL9 repository mirror execution itself. That area still depends on the existing shell repository sync for `reposync` parity, even though metadata generation and NISP handling are now native.
+`upstreamd` still does not yet provide a fully validated production tool-path for every native registry helper, and it does not yet replace the shell repository flow end to end in all environments. The repository mirror execution path is now native in structure, but production parity still needs more validation against the existing shell output.
 
 ## Transfer Model
 
@@ -131,16 +132,19 @@ The OL9 sync still uses a containerized path because that matches the upstream t
 3. Scanner database updates from `registries/security-*.sh`
 4. Helm chart sync from `registries/sync-helm-*.sh`
 
-Helm charts are defined in `registries/charts.yaml`. They are pushed into the `public` namespace and can preserve subpaths using `targetPath`, for example `public/charts/platform` or `public/charts/gitlab`.
+Helm charts are defined in `registries/charts.yaml`. They are pushed into the configured OCI namespace, currently `internet`, and can preserve subpaths using `targetPath`, for example `internet/charts/platform` or `internet/charts/gitlab`.
 
-The active chart sync uses Helm through a Podman container image configured in `registries/config.env`. The host does not need a local Helm installation.
+The shell chart sync still uses Helm through a Podman container image configured in `registries/config.env`. The host does not need a local Helm installation for that path.
 
 `upstreamd` now has native registry handling for:
 
 - discovered `*.images` files
 - discovered `*.charts` files
+- merged multi-file discovery under the mounted `/config` directory
 - native image copy orchestration
-- native chart pull/push orchestration
+- native chart pull/push orchestration through a direct `helm` binary
+- native Trivy DB collection
+- native Oracle Linux 8 OVAL collection
 
 The shell registry flow still remains useful as a reference implementation and for any helpers not yet ported, but images and charts are no longer shell-only concerns.
 
@@ -201,7 +205,7 @@ It also writes a failed-only report to `registries/tmp/prefetch/registry-source-
 
 For the current `upstreamd` repository-native path, NISP ISO input is expected in the configured `iso_dir`, currently `/trunk/iso`, and source media is preserved after import.
 
-Use `registries/reconcile-zot-images.sh` when you want to compare the live Zot image content under `public` with the desired image set from `registries/outside.yaml` and optional kubeadm images. It defaults to dry-run and only applies deletions when run with `--apply`.
+Use `registries/reconcile-zot-images.sh` when you want to compare the live Zot image content under the configured OCI namespace with the desired image set from `registries/outside.yaml` and optional kubeadm images. It defaults to dry-run and only applies deletions when run with `--apply`.
 
 ## Upstream Staging and Transfer Manifests
 

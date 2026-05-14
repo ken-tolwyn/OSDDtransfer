@@ -78,6 +78,8 @@ The `/config` directory is discovered by file extension:
 - `*.images` for registry image definitions
 - `*.charts` for registry chart definitions
 
+Multiple `*.images` and `*.charts` files are merged in one native registry run.
+
 An example config directory is provided at [container-config](/home/ken/gitdir/sync/container-config). Its `upstreamd.toml` is intended to be passed to the daemon from inside the container as `/config/upstreamd.toml`.
 
 ISO media can be placed elsewhere with an explicit config entry. The current example uses `iso_dir = "/trunk/iso"` so NISP input can be dropped onto the work volume instead of the read-mostly mounted config directory.
@@ -121,6 +123,17 @@ Repository sync should keep the current repository logic:
 - keep key generation and repository index generation
 
 The target model does not require the file watcher to decide sync timing. The scheduler should trigger full sync cycles independently, while the watcher only promotes changed staged files into transfer.
+
+### Native Registry Coverage
+
+The native registry path in `upstreamd` now covers:
+
+- image sync from discovered `*.images` files
+- chart sync from discovered `*.charts` files using a direct `helm` binary
+- Trivy DB image collection
+- Oracle Linux 8 OVAL collection
+
+The main remaining registry gap is a fuller non-dry-run integration test path for the real external tools.
 
 ## Systemd
 
