@@ -60,10 +60,22 @@
         mode: "0755"
       loop: "{{ stage_directories }}"
 
-    - name: Ensure inotify log file exists
+    - name: Check if inotify log file exists
+      ansible.builtin.stat:
+        path: "{{ inotify_log_file }}"
+      register: inotify_log_stat
+
+    - name: Create inotify log file when missing
       ansible.builtin.file:
         path: "{{ inotify_log_file }}"
         state: touch
+        mode: "0644"
+      when: not inotify_log_stat.stat.exists
+
+    - name: Ensure inotify log file ownership and mode
+      ansible.builtin.file:
+        path: "{{ inotify_log_file }}"
+        state: file
         mode: "0644"
         owner: "{{ datadiode_user }}"
         group: "{{ datadiode_user }}"
