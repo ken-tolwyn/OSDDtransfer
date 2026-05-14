@@ -101,10 +101,15 @@
         - datadiode-registry.service
         - datadiode-reposilite.service
 
+    - name: Check lingering state for sync user
+      ansible.builtin.stat:
+        path: "/var/lib/systemd/linger/{{ datadiode_sync_user }}"
+      register: datadiode_linger_state
+
     - name: Enable lingering for sync user
       ansible.builtin.command:
         cmd: "loginctl enable-linger {{ datadiode_sync_user }}"
-      changed_when: false
+      when: not datadiode_linger_state.stat.exists
 
     - name: Lookup sync user UID
       ansible.builtin.command:
@@ -145,8 +150,11 @@
       changed_when: false
 
     - name: Enable and start user sync timer
-      ansible.builtin.command:
-        cmd: "systemctl --user enable --now {{ datadiode_sync_unit_name }}.timer"
+      ansible.builtin.systemd_service:
+        name: "{{ datadiode_sync_unit_name }}.timer"
+        enabled: true
+        state: started
+        scope: user
       become_user: "{{ datadiode_sync_user }}"
       environment:
         XDG_RUNTIME_DIR: "/run/user/{{ datadiode_sync_uid.stdout }}"
