@@ -356,6 +356,7 @@ Important variables:
 - `trunk_root` and `transfer_root`: root staging paths (default `/trunk` and `/trunk/transfer`)
 - `inotify_watch_paths`: directories monitored by the inotify service
 - `reposilite_image` and `reposilite_port`: Reposilite container runtime settings
+  - default image is pinned to `docker.io/dzikoysk/reposilite:3.5.22` in the playbook; change it explicitly if you need a different tested version
 
 ## Current State
 
