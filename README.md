@@ -324,6 +324,39 @@ systemctl --user list-timers
 systemctl --user status datadiode-sync.timer
 ```
 
+## Ansible Host Setup and Monitoring
+
+An Ansible playbook is provided to bootstrap and run this setup on a host:
+
+- creates required `/trunk` and `/trunk/transfer` directories
+- configures inotify monitoring for repository and registry staging paths
+- installs user systemd units for:
+  - Zot registry sync startup
+  - Reposilite startup
+  - scheduled repository sync timer
+
+Playbook path:
+
+```text
+server-config/ansible/setup-monitor.yaml
+```
+
+Example usage:
+
+```bash
+ansible-playbook -i inventory.ini server-config/ansible/setup-monitor.yaml \
+  -e datadiode_user="$USER" \
+  -e osddtransfer_checkout=/path/to/this/repository
+```
+
+Important variables:
+
+- `datadiode_user`: Linux user that owns and runs user-level systemd units
+- `osddtransfer_checkout`: checkout path used by sync unit `ExecStart`
+- `trunk_root` and `transfer_root`: root staging paths (default `/trunk` and `/trunk/transfer`)
+- `inotify_watch_paths`: directories monitored by the inotify service
+- `reposilite_image` and `reposilite_port`: Reposilite container runtime settings
+
 ## Current State
 
 The repository is already in a workable state for the main transfer classes, but a few realities are worth keeping in mind:

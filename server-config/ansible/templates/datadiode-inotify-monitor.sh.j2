@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+LOG_FILE="{{ inotify_log_file }}"
+WATCH_PATHS=("$@")
+
+if [[ ${#WATCH_PATHS[@]} -eq 0 ]]; then
+  WATCH_PATHS=(
+{% for path in inotify_watch_paths %}
+    "{{ path }}"
+{% endfor %}
+  )
+fi
+
+mkdir -p "$(dirname "$LOG_FILE")"
+touch "$LOG_FILE"
+
+inotifywait -m -r -e create,modify,delete,move --format '%w%f|%e' "${WATCH_PATHS[@]}" |
+  while IFS='|' read -r path event; do
+    printf '%s\t%s\t%s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$event" "$path" >> "$LOG_FILE"
+  done

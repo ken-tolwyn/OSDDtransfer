@@ -1,0 +1,10 @@
+[Unit]
+Description=Schedule repository sync
+
+[Timer]
+OnBootSec={{ reposync_on_boot }}
+OnUnitActiveSec={{ reposync_every }}
+Unit={{ reposync_service_name }}.service
+
+[Install]
+WantedBy=timers.target

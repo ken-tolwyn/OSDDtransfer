@@ -1,0 +1,14 @@
+[Unit]
+Description=Start Zot registry sync flow
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory={{ osddtransfer_checkout }}
+ExecStart=/usr/bin/bash {{ osddtransfer_checkout }}/registries/sync-registries.sh
+ExecStop=-/usr/bin/podman stop {{ registry_container_name }}
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,9 @@
+[Unit]
+Description=Run repository sync
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory={{ osddtransfer_checkout }}
+ExecStart=/usr/bin/bash {{ osddtransfer_checkout }}/repositories/sync-repositories.sh

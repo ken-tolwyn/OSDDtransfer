@@ -1,0 +1,18 @@
+[Unit]
+Description=Reposilite repository service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/podman rm -f {{ reposilite_container_name }}
+ExecStart=/usr/bin/podman run --name {{ reposilite_container_name }} --rm \
+  -p {{ reposilite_port }}:8080 \
+  -v {{ reposilite_repo_path }}:/var/reposilite:Z \
+  {{ reposilite_image }}
+ExecStop=-/usr/bin/podman stop {{ reposilite_container_name }}
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

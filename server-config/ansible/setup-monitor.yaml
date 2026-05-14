@@ -1,0 +1,135 @@
+---
+- name: Setup and monitor datadiode staging host
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    datadiode_user: "{{ ansible_user_id }}"
+    osddtransfer_checkout: /opt/OSDDtransfer
+    trunk_root: /trunk
+    transfer_root: /trunk/transfer
+
+    install_required_packages: true
+    required_packages:
+      - inotify-tools
+      - podman
+
+    stage_directories:
+      - "{{ trunk_root }}/repository"
+      - "{{ trunk_root }}/registry"
+      - "{{ trunk_root }}/hauler"
+      - "{{ trunk_root }}/nexus-backup"
+      - "{{ transfer_root }}/repository"
+      - "{{ transfer_root }}/registry"
+      - "{{ transfer_root }}/nexus"
+      - "{{ transfer_root }}/misc"
+
+    inotify_watch_paths:
+      - "{{ trunk_root }}/repository"
+      - "{{ trunk_root }}/registry"
+      - "{{ transfer_root }}/repository"
+      - "{{ transfer_root }}/registry"
+    inotify_log_file: "{{ transfer_root }}/inotify-events.log"
+
+    registry_container_name: zot-upstream
+    registry_service_name: datadiode-registry
+
+    reposilite_service_name: reposilite
+    reposilite_container_name: reposilite
+    reposilite_image: docker.io/dzikoysk/reposilite:3.5.22
+    reposilite_port: 8080
+    reposilite_repo_path: "{{ trunk_root }}/repository"
+
+    reposync_service_name: datadiode-reposync
+    reposync_timer_name: datadiode-reposync.timer
+    reposync_on_boot: 5m
+    reposync_every: 1h
+
+  tasks:
+    - name: Install required packages
+      ansible.builtin.package:
+        name: "{{ required_packages }}"
+        state: present
+      when: install_required_packages | bool
+
+    - name: Create staging and transfer directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop: "{{ stage_directories }}"
+
+    - name: Ensure inotify log file exists
+      ansible.builtin.file:
+        path: "{{ inotify_log_file }}"
+        state: touch
+        mode: "0644"
+        owner: "{{ datadiode_user }}"
+        group: "{{ datadiode_user }}"
+
+    - name: Enable linger for systemd user services
+      ansible.builtin.command:
+        cmd: "loginctl enable-linger {{ datadiode_user }}"
+      changed_when: false
+
+    - name: Look up datadiode user UID
+      ansible.builtin.command:
+        cmd: "id -u {{ datadiode_user }}"
+      register: datadiode_user_uid
+      changed_when: false
+
+    - name: Ensure user systemd and bin directories exist
+      become_user: "{{ datadiode_user }}"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - "~/.config/systemd/user"
+        - "~/.local/bin"
+
+    - name: Install inotify monitor script
+      become_user: "{{ datadiode_user }}"
+      ansible.builtin.template:
+        src: templates/datadiode-inotify-monitor.sh.j2
+        dest: "~/.local/bin/datadiode-inotify-monitor.sh"
+        mode: "0755"
+
+    - name: Install user systemd units
+      become_user: "{{ datadiode_user }}"
+      ansible.builtin.template:
+        src: "templates/{{ item.src }}"
+        dest: "~/.config/systemd/user/{{ item.dest }}"
+        mode: "0644"
+      loop:
+        - src: datadiode-inotify.service.j2
+          dest: datadiode-inotify.service
+        - src: datadiode-reposync.service.j2
+          dest: "{{ reposync_service_name }}.service"
+        - src: datadiode-reposync.timer.j2
+          dest: "{{ reposync_timer_name }}"
+        - src: datadiode-registry.service.j2
+          dest: "{{ registry_service_name }}.service"
+        - src: reposilite.service.j2
+          dest: "{{ reposilite_service_name }}.service"
+
+    - name: Reload user systemd
+      become_user: "{{ datadiode_user }}"
+      ansible.builtin.command:
+        cmd: systemctl --user daemon-reload
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_user_uid.stdout }}"
+      changed_when: false
+
+    - name: Enable and start user services
+      become_user: "{{ datadiode_user }}"
+      ansible.builtin.command:
+        cmd: "systemctl --user enable --now {{ item }}"
+      environment:
+        XDG_RUNTIME_DIR: "/run/user/{{ datadiode_user_uid.stdout }}"
+      changed_when: false
+      loop:
+        - "{{ registry_service_name }}.service"
+        - "{{ reposilite_service_name }}.service"
+        - datadiode-inotify.service
+        - "{{ reposync_timer_name }}"
