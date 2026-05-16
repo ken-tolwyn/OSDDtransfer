@@ -1,0 +1,37 @@
+---
+- name: Bootstrap privileged datadiode host requirements
+  hosts: all
+  become: true
+  gather_facts: true
+
+  vars:
+    datadiode_runtime_user: "{{ lookup('env', 'USER') | default(ansible_user_id, true) }}"
+    datadiode_runtime_group: "{{ lookup('env', 'USER') | default(ansible_user_id, true) }}"
+    datadiode_trunk_root: /trunk
+    datadiode_stage_root: /trunk/stage
+    datadiode_transfer_root: /trunk/transfer
+    datadiode_iso_dir: /trunk/iso
+    datadiode_dir_mode: "2775"
+    datadiode_transfer_items:
+      - repository
+      - registry
+      - maven
+    datadiode_reposilite_storage_dir: "{{ datadiode_stage_root }}/maven/reposilite"
+    datadiode_zot_data_dir: "{{ datadiode_stage_root }}/registry"
+    datadiode_verdaccio_storage_dir: "{{ datadiode_stage_root }}/maven/verdaccio"
+    datadiode_required_packages:
+      - podman
+      - java-17-openjdk-headless
+      - rsync
+      - nodejs
+      - inotify-tools
+      - curl
+      - jq
+      - yq
+      - libarchive
+      - dnf-plugins-core
+      - skopeo
+
+  tasks:
+    - name: Apply privileged bootstrap tasks
+      ansible.builtin.import_tasks: ../tasks/bootstrap-system.yml

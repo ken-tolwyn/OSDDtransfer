@@ -1,0 +1,94 @@
+---
+- name: Deploy datadiode runtime env file
+  ansible.builtin.template:
+    src: ../templates/datadiode.env.j2
+    dest: "{{ datadiode_config_root }}/datadiode.env"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Copy managed helper scripts
+  ansible.builtin.copy:
+    src: "../files/{{ item }}"
+    dest: "{{ datadiode_service_root }}/{{ item }}"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0755"
+  loop:
+    - common.sh
+    - inode-check.sh
+    - inotify-check.sh
+    - run-reposync.sh
+    - run-registry-sync.sh
+    - watch-transfer-links.sh
+    - start-reposilite.sh
+    - start-zot-container.sh
+
+- name: Ensure deployed repository sync directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0755"
+  loop:
+    - "{{ datadiode_service_root }}/repositories"
+    - "{{ datadiode_service_root }}/registries"
+    - "{{ datadiode_service_root }}/registries/tmp"
+
+- name: Copy deployed repository support files
+  ansible.builtin.copy:
+    src: "../files/{{ item.src }}"
+    dest: "{{ datadiode_service_root }}/{{ item.dest }}"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "{{ item.mode }}"
+  loop:
+    - { src: "repositories/sync-repositories.sh", dest: "repositories/sync-repositories.sh", mode: "0755" }
+    - { src: "repositories/oracle-linux-ol8.repo", dest: "repositories/oracle-linux-ol8.repo", mode: "0644" }
+    - { src: "repositories/oracle-linux-ol9.repo", dest: "repositories/oracle-linux-ol9.repo", mode: "0644" }
+    - { src: "registries/sync-registries.sh", dest: "registries/sync-registries.sh", mode: "0755" }
+    - { src: "registries/sync-helm-charts.sh", dest: "registries/sync-helm-charts.sh", mode: "0755" }
+    - { src: "registries/outside.yaml", dest: "registries/outside.yaml", mode: "0644" }
+    - { src: "registries/charts.yaml", dest: "registries/charts.yaml", mode: "0644" }
+    - { src: "registries/zot_config.json", dest: "registries/zot_config.json", mode: "0644" }
+
+- name: Deploy root config.env for vendored sync scripts
+  ansible.builtin.template:
+    src: ../templates/root-config.env.j2
+    dest: "{{ datadiode_service_root }}/config.env"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Deploy repository config.env for vendored sync scripts
+  ansible.builtin.template:
+    src: ../templates/repositories-config.env.j2
+    dest: "{{ datadiode_service_root }}/repositories/config.env"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Deploy registry config.env for vendored sync scripts
+  ansible.builtin.template:
+    src: ../templates/registries-config.env.j2
+    dest: "{{ datadiode_service_root }}/registries/config.env"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Deploy Reposilite configuration
+  ansible.builtin.template:
+    src: ../templates/reposilite-configuration.json.j2
+    dest: "{{ datadiode_reposilite_config_path }}"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Deploy Zot runtime config
+  ansible.builtin.template:
+    src: ../templates/zot-config.json.j2
+    dest: "{{ datadiode_zot_config_path }}"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"

@@ -1,0 +1,15 @@
+[Unit]
+Description=Datadiode Transfer Watcher
+After=network-online.target datadiode-zot.service datadiode-reposilite.service
+Wants=network-online.target datadiode-zot.service datadiode-reposilite.service
+
+[Service]
+Type=simple
+ExecStartPre={{ datadiode_service_root }}/inode-check.sh
+ExecStartPre={{ datadiode_service_root }}/inotify-check.sh
+ExecStart={{ datadiode_service_root }}/watch-transfer-links.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=default.target

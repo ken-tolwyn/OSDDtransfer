@@ -1,0 +1,61 @@
+---
+- name: Install daily reposync service
+  ansible.builtin.template:
+    src: ../templates/daily-reposync.service.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-daily-reposync.service"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Install daily reposync timer
+  ansible.builtin.template:
+    src: ../templates/daily-reposync.timer.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-daily-reposync.timer"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Install daily registry sync service
+  ansible.builtin.template:
+    src: ../templates/daily-registry-sync.service.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-daily-registry-sync.service"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Install daily registry sync timer
+  ansible.builtin.template:
+    src: ../templates/daily-registry-sync.timer.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-daily-registry-sync.timer"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Install daily full sync service
+  ansible.builtin.template:
+    src: ../templates/daily-full-sync.service.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-daily-full-sync.service"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Install daily full sync timer
+  ansible.builtin.template:
+    src: ../templates/daily-full-sync.timer.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-daily-full-sync.timer"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Enable and start sync timers
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    daemon_reload: true
+    enabled: true
+    state: started
+    scope: user
+  loop:
+    - datadiode-daily-reposync.timer
+    - datadiode-daily-registry-sync.timer
+    - datadiode-daily-full-sync.timer
+  environment: "{{ datadiode_systemd_user_env }}"

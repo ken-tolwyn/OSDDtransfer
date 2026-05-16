@@ -1,0 +1,35 @@
+---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Assert Netdata service is running
+  ansible.builtin.assert:
+    that:
+      - "'netdata.service' in ansible_facts.services"
+      - ansible_facts.services['netdata.service'].state == 'running'
+    fail_msg: "netdata.service is not running"
+
+- name: Assert Cockpit socket is running
+  ansible.builtin.assert:
+    that:
+      - "'cockpit.socket' in ansible_facts.services"
+      - ansible_facts.services['cockpit.socket'].state == 'running'
+    fail_msg: "cockpit.socket is not running"
+
+- name: Check Netdata API
+  ansible.builtin.uri:
+    url: "{{ datadiode_netdata_url }}"
+    method: GET
+    status_code: 200
+  changed_when: false
+
+- name: Check Cockpit login page
+  ansible.builtin.uri:
+    url: "{{ datadiode_cockpit_url }}"
+    method: GET
+    validate_certs: false
+    status_code:
+      - 200
+      - 301
+      - 302
+  changed_when: false

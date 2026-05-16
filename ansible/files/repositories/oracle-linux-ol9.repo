@@ -1,0 +1,41 @@
+[ol9_developer_EPEL]
+name=Oracle Linux $releasever EPEL ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL9/developer/EPEL/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol9_appstream]
+name=Oracle Linux 9 Application Stream Packages ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL9/appstream/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol9_addons]
+name=Oracle Linux 9 Addons ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL9/addons/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol9_codeready_builder]
+name=Oracle Linux 9 Code Ready Builder ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL9/codeready/builder/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol9_UEKR7]
+name=Oracle Linux $releasever UEK Release 7 ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL9/UEKR7/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol9_UEKR8]
+name=Oracle Linux $releasever UEK Release 8 ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL9/UEKR8/$basearch/
+gpgcheck=1
+enabled=1
+
+[ol9_kvm_utils]
+name=Oracle Linux 9 KVM Utilities ($basearch)
+baseurl=https://yum.oracle.com/repo/OracleLinux/OL9/kvm/utils/$basearch/
+gpgcheck=1
+enabled=1

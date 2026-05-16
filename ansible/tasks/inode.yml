@@ -1,0 +1,12 @@
+---
+- name: Run inode and hard-link preflight
+  ansible.builtin.command:
+    argv:
+      - "{{ datadiode_service_root }}/inode-check.sh"
+  changed_when: false
+
+- name: Run inotify preflight
+  ansible.builtin.command:
+    argv:
+      - "{{ datadiode_service_root }}/inotify-check.sh"
+  changed_when: false

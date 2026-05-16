@@ -1,0 +1,45 @@
+---
+- name: Ensure Verdaccio install prefix exists
+  ansible.builtin.file:
+    path: "{{ datadiode_verdaccio_prefix }}"
+    state: directory
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0755"
+
+- name: Install Verdaccio with npm
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/npm
+      - install
+      - --global
+      - --prefix
+      - "{{ datadiode_verdaccio_prefix }}"
+      - verdaccio
+  args:
+    creates: "{{ datadiode_verdaccio_bin }}"
+
+- name: Deploy Verdaccio config
+  ansible.builtin.template:
+    src: ../templates/verdaccio.yaml.j2
+    dest: "{{ datadiode_verdaccio_config_path }}"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Install Verdaccio systemd unit
+  ansible.builtin.template:
+    src: ../templates/verdaccio.service.j2
+    dest: "{{ datadiode_systemd_user_root }}/datadiode-verdaccio.service"
+    owner: "{{ datadiode_runtime_user }}"
+    group: "{{ datadiode_runtime_group }}"
+    mode: "0644"
+
+- name: Enable and start Verdaccio
+  ansible.builtin.systemd_service:
+    name: datadiode-verdaccio.service
+    daemon_reload: true
+    enabled: true
+    state: started
+    scope: user
+  environment: "{{ datadiode_systemd_user_env }}"

@@ -1,0 +1,18 @@
+storage: {{ datadiode_verdaccio_storage_dir }}
+listen: 0.0.0.0:{{ datadiode_verdaccio_port }}
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+packages:
+  "@*/*":
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+  "**":
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+server:
+  keepAliveTimeout: 60
+log:
+  - {type: stdout, format: pretty, level: http}

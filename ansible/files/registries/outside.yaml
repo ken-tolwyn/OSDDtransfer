@@ -1,0 +1,21 @@
+registry.gitlab.com:
+  images:
+    gitlab-org/gitlab-runner/gitlab-runner-helper:
+      - x86_64-8ec04662
+    gitlab-org/technical-writing/docs-gitlab-com/archives:
+      - "17.6"
+    gitlab-org/cluster-integration/gitlab-agent/agentk:
+      - "v17.6.1"
+      - "v17.6.5"
+
+ironbank.ilab.zone:
+  images:
+    docker-team-bravo-dino/dino-frontend:
+      - "1.0.20"
+    docker-team-bravo-dino/dino-backend:
+      - "1.0.20"
+
+docker.io:
+  images:
+    library/nginx:
+      - "1.27.5"

@@ -1,0 +1,13 @@
+[Unit]
+Description=Datadiode Verdaccio npm Cache
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart={{ datadiode_verdaccio_bin }} --config {{ datadiode_verdaccio_config_path }}
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

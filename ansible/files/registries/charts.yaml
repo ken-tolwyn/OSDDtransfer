@@ -1,0 +1,8 @@
+charts:
+  - name: zot
+    repoURL: https://zotregistry.dev/helm-charts
+    targetPath: charts/platform
+
+  - name: cert-manager
+    repoURL: https://charts.jetstack.io
+    targetPath: charts/platform
