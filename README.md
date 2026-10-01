@@ -1,5 +1,34 @@
 # Datadiode Staging Repository
 
+> **New implementation:** this repository now also contains the C++23 foundation for the
+> Kubernetes-native OSDD artifact repository. The existing staging scripts remain available
+> during migration. See [the architecture](docs/architecture.md) for authority boundaries,
+> atomic generation publication, protocol adapters, reconciliation, scanning, and recovery.
+
+## C++ repository quick start
+
+```bash
+cmake -S . -B build
+cmake --build build
+ctest --test-dir build --output-on-failure
+
+# Ingest bytes and print their SHA-256 CAS identity.
+./build/osdd-repository put /var/lib/osdd artifact.jar
+
+# Commit a generation from TSV mappings, then rebuild the derived SQLite index.
+./build/osdd-repository commit /var/lib/osdd release 0001 mappings.tsv
+./build/osdd-repository rebuild /var/lib/osdd
+
+# Run the minimal read-only API (development server on port 8080).
+./build/osdd-repository serve /var/lib/osdd 8080
+```
+
+The TSV format is `logical-path`, `digest`, and optional `component`, `media-type`, and
+`integrity`, separated by tabs. A logical path must include at least ecosystem, repository,
+and artifact path segments. Production deployments put NGINX in front of the API; the
+built-in CAS response exists for development and is not a replacement for authorized
+`X-Accel-Redirect` delivery.
+
 ## Overview
 
 This repository prepares content that must cross a datadiode or similar one-way transfer boundary. It is not a single application. It is an operations repository that stages several different content types so they can be transferred into a restricted or air-gapped environment in a predictable way.
